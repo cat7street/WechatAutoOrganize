@@ -57,12 +57,20 @@ def _pack(messages: list[Message], budget: int) -> list[list[Message]]:
 
 
 def build_user_prompt(session_display: str, batch: list[Message]) -> str:
-    head = (f"会话：{session_display}\n"
+    import datetime as _dt
+    today = _dt.date.today().isoformat()
+    head = (f"今天日期：{today}（相对时间按它换算，due 用 YYYY-MM-DD）\n"
+            f"会话：{session_display}\n"
             f"消息条数：{len(batch)}\n"
             f"时间跨度：{batch[0].line()[:22]} 起\n"
             f"---- 聊天记录开始 ----")
     body = "\n".join(m.line() for m in batch)
-    return f"{head}\n{body}\n---- 聊天记录结束 ----"
+    # 末尾必须再喊一次：实测该网关下模型会把“抽任务”当成聊天，格式约束只在开头写不管用
+    tail = ('---- 聊天记录结束 ----\n'
+            '现在只输出 JSON，第一个字符必须是 {，不要任何解释、标题、前言或 markdown：\n'
+            '{"tasks":[{"title":"","owner":"","due":"","priority":"high|medium|low",'
+            '"quote":"","msg_ids":[],"confidence":0}]}')
+    return f"{head}\n{body}\n{tail}"
 
 
 def build_content(session_display: str, batch: list[Message],

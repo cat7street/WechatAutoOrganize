@@ -58,6 +58,7 @@ class Config:
     api_key: str
     model: str
     response_format: str = "json_object"  # json_object | json_schema
+    system_role: str = "system"          # system | user（网关丢 system 时改 user）
     temperature: float = 0.0
     timeout: float = 180.0
     max_chars_per_request: int = 12000
@@ -157,6 +158,7 @@ def load(config_path: Path | None = None) -> Config:
                  or os.environ.get("DEEPSEEK_API_KEY") or llm.get("api_key", "")),
         model=os.environ.get("WECHAT_TODO_MODEL") or llm.get("model", ""),
         response_format=llm.get("response_format", "json_object"),
+        system_role=llm.get("system_role", "system"),
         temperature=float(llm.get("temperature", 0.0)),
         timeout=float(llm.get("timeout", 180.0)),
         max_chars_per_request=int(llm.get("max_chars_per_request", 12000)),
