@@ -52,12 +52,16 @@ def iter_run(cfg: Config, *, skip_decrypt: bool = False, dry_run: bool = False,
         displays = scan._display_names(cfg.work_dir)
         senders = scan._sender_map(cfg.work_dir)
         cutoff = int(time.time()) - cfg.window_hours * 3600
-        media_ctx = scan.make_media_context(cfg.work_dir, cfg.account_root(),
-                                            cfg.image_tool_dir)
-        if media_ctx is None:
-            yield _ev("log", msg="未找到账号目录，非文本消息按无法解析处理")
+        media_ctx = None
+        if cfg.media_enabled:
+            media_ctx = scan.make_media_context(cfg.work_dir, cfg.account_root(),
+                                               cfg.image_tool_dir)
+            if media_ctx is None:
+                yield _ev("log", msg="媒体开启但未找到账号目录，非文本消息将跳过")
+            else:
+                yield _ev("log", msg=f"媒体已开启：{len(media_ctx.hardlink)} 条硬链接记录")
         else:
-            yield _ev("log", msg=f"媒体索引：{len(media_ctx.hardlink)} 条硬链接记录")
+            yield _ev("log", msg="纯文本模式：非文本消息（图/文件/语音）跳过")
 
         llm = None if dry_run else LLM(cfg)
         all_tasks = []

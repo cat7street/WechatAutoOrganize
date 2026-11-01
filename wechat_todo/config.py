@@ -60,10 +60,11 @@ class Config:
     window_hours: int = 48
     max_messages_per_session: int = 5000
 
-    # --- 媒体 ---
-    media_images: bool = True
-    media_files: bool = True
-    media_voice: bool = True
+    # --- 媒体（默认关闭：先只跑文本）---
+    media_enabled: bool = False
+    media_images: bool = False
+    media_files: bool = False
+    media_voice: bool = False
     max_file_chars: int = 4000
     image_tool_dir: Path = RESOURCE_ROOT / "tools" / "wechat-decrypt"
     media_cache: Path = ROOT / "data" / "image_keys.json"
@@ -144,9 +145,10 @@ def load(config_path: Path | None = None) -> Config:
         text_types=[int(x) for x in filt.get("text_types", [1])],
         window_hours=int(filt.get("window_hours", 48)),
         max_messages_per_session=int(filt.get("max_messages_per_session", 5000)),
-        media_images=bool(med.get("images", True)),
-        media_files=bool(med.get("files", True)),
-        media_voice=bool(med.get("voice", True)),
+        media_enabled=bool(med.get("enabled", False)),
+        media_images=bool(med.get("images", False)),
+        media_files=bool(med.get("files", False)),
+        media_voice=bool(med.get("voice", False)),
         max_file_chars=int(med.get("max_file_chars", 4000)),
         image_tool_dir=Path(med.get("image_tool_dir")
                             or RESOURCE_ROOT / "tools" / "wechat-decrypt"),
