@@ -1,25 +1,28 @@
-# 瀵嗛挜涓庨厤缃?.env
+# ---- secrets: never commit ----
+.env
 config.toml
 keys.json
 all_keys.json
 
-# 鏄庢枃鑱婂ぉ璁板綍锛氱粷涓嶈繘浠撳簱
+# ---- local plaintext chat data and outputs ----
 decrypted/
 out/
 data/
 *.db-wal
 *.db-shm
 
-# 涓婃父宸ュ叿涓庤櫄鎷熺幆澧?tools/
+# ---- third-party upstream tools and venvs (not redistributed) ----
+tools/
 .venv/
 venv/
 
-# 鍓嶇
+# ---- frontend ----
 frontend/node_modules/
 frontend/dist/
 node_modules/
+*.tsbuildinfo
 
-# Python
+# ---- python ----
 __pycache__/
 *.py[cod]
 .pytest_cache/
@@ -27,7 +30,5 @@ build/
 dist/
 *.spec
 
-# 本地临时/侦察文件
+# ---- local scratch (repo root only) ----
 /_*
-_scratch/
-*.tsbuildinfo
