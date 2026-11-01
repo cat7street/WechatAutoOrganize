@@ -17,11 +17,17 @@ class Message:
     sender: str
     sender_display: str
     text: str
+    attachments: list = field(default_factory=list)
 
     def line(self) -> str:
         import datetime as _dt
         when = _dt.datetime.fromtimestamp(self.ts).strftime("%m-%d %H:%M")
-        return f"[{self.local_id}] {when} {self.sender_display}: {self.text}"
+        body = self.text.strip() if self.text else ""
+        if self.attachments:
+            extra = " | ".join(
+                f"{a.label}{('：' + a.text) if a.text else ''}".strip() for a in self.attachments)
+            body = f"{body} {extra}".strip()
+        return f"[{self.local_id}] {when} {self.sender_display}: {body}"
 
 
 @dataclass(slots=True)

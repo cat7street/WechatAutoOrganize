@@ -57,7 +57,8 @@ class LLM:
                                     "strict": True}}
         return {"type": "json_object"}
 
-    def complete_json(self, system: str, user: str) -> tuple[dict, Usage]:
+    def complete_json(self, system: str, user: str | list[dict]) -> tuple[dict, Usage]:
+        """user 可以是纯文本，也可以是 OpenAI 多模态 content parts（含 image_url）。"""
         resp = self.client.chat.completions.create(
             model=self.cfg.model,
             temperature=self.cfg.temperature,

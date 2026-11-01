@@ -15,6 +15,14 @@ SYSTEM_PROMPT = """你是一个精准的待办抽取器。输入是微信群或�
 必须忽略：闲聊寒暄、表情与语气词、广告与刷屏营销、无责任人的泛泛感叹、
 纯信息同步且无后续动作的内容。
 
+非文本消息会以方括号标出：[图片] / [文件 xxx] / [引用 xxx] / [合并转发 xxx] /
+[转账] / [语音 N 秒] / [视频 N 秒]。规则：
+- 图片会作为图像一并提供。图里的聊天截图、通知、体检单、日程、报团等都要读，
+  图里出现的时间地点金额就是待办依据；
+- [文件 xxx] 后面跟的是从文件里抽出的正文，直接当内容读；
+- [引用] 里的原文属于上下文，真待办以引用后的那句为准；
+- [语音]/[视频] 只有时长元信息，不据此编造内容。
+
 只输出 JSON，结构：
 {"tasks":[{"title":"","owner":"","due":"","priority":"high|medium|low",
            "quote":"","msg_ids":[],"confidence":0.0}]}
@@ -57,6 +65,30 @@ def build_user_prompt(session_display: str, batch: list[Message]) -> str:
     return f"{head}\n{body}\n---- 聊天记录结束 ----"
 
 
+def build_content(session_display: str, batch: list[Message],
+                  max_images: int = 4) -> str | list[dict]:
+    """组装模型输入：纯文本，或带图片的多模态 content parts。
+
+    图片按 msgid 顺序附在文本后面，并在文本里标注它来自哪条消息，保证 msg_ids 能回指。
+    """
+    text = build_user_prompt(session_display, batch)
+    images: list[tuple[int, str]] = []
+    for m in batch:
+        for a in m.attachments:
+            if a.image_b64:
+                images.append((m.local_id, a.image_b64))
+    if not images:
+        return text
+    used = images[:max_images]
+    note = "\n\n附带的图片依次来自这些消息（顺序与下方图片一致）：" + ", ".join(
+        f"msg:{i}" for i, _ in used)
+    parts: list[dict] = [{"type": "text", "text": text + note}]
+    for msg_id, url in used:
+        parts.append({"type": "text", "text": f"[msg:{msg_id}] 的图片："})
+        parts.append({"type": "image_url", "image_url": {"url": url}})
+    return parts
+
+
 def extract_session(llm: LLM, session_display: str, messages: list[Message],
                     budget: int, session: str, log=print
                     ) -> tuple[list[Task], Usage]:
@@ -65,7 +97,7 @@ def extract_session(llm: LLM, session_display: str, messages: list[Message],
     batches = _pack(messages, budget)
     for i, batch in enumerate(batches, 1):
         log(f"[extract] {session_display} 批次 {i}/{len(batches)}（{len(batch)} 条）")
-        data, u = llm.complete_json(SYSTEM_PROMPT, build_user_prompt(session_display, batch))
+        data, u = llm.complete_json(SYSTEM_PROMPT, build_content(session_display, batch))
         usage.add(u)
         id_set = {m.local_id for m in batch}
         for raw in data.get("tasks", []):

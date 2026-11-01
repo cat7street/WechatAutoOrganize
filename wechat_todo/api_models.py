@@ -27,6 +27,10 @@ class SettingsOut(BaseModel):
     db_dir: str
     work_dir: str
     out_dir: str
+    media_images: bool
+    media_files: bool
+    media_voice: bool
+    max_file_chars: int
 
 
 class LLMPatchOut(BaseModel):
@@ -37,6 +41,14 @@ class LLMPatchOut(BaseModel):
 class WhitelistOut(BaseModel):
     ok: bool
     whitelist: list[str]
+
+
+class MediaOut(BaseModel):
+    ok: bool
+    media_images: bool
+    media_files: bool
+    media_voice: bool
+    max_file_chars: int
 
 
 class SessionOut(BaseModel):

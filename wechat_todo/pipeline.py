@@ -52,6 +52,12 @@ def iter_run(cfg: Config, *, skip_decrypt: bool = False, dry_run: bool = False,
         displays = scan._display_names(cfg.work_dir)
         senders = scan._sender_map(cfg.work_dir)
         cutoff = int(time.time()) - cfg.window_hours * 3600
+        media_ctx = scan.make_media_context(cfg.work_dir, cfg.account_root(),
+                                            cfg.image_tool_dir)
+        if media_ctx is None:
+            yield _ev("log", msg="未找到账号目录，非文本消息按无法解析处理")
+        else:
+            yield _ev("log", msg=f"媒体索引：{len(media_ctx.hardlink)} 条硬链接记录")
 
         llm = None if dry_run else LLM(cfg)
         all_tasks = []
@@ -63,7 +69,11 @@ def iter_run(cfg: Config, *, skip_decrypt: bool = False, dry_run: bool = False,
             floor = cursor if cursor else cutoff * 1000
             msgs = scan.fetch_messages(cfg.work_dir, s, floor, text_types=cfg.text_types,
                                        senders=senders, displays=displays,
-                                       limit=cfg.max_messages_per_session)
+                                       limit=cfg.max_messages_per_session,
+                                       media=media_ctx,
+                                       max_file_chars=cfg.max_file_chars,
+                                       with_images=cfg.media_images,
+                                       cache_file=cfg.media_cache)
             if not msgs:
                 stats["skipped_sessions"] += 1
                 yield _ev("log", msg=f"{s.display}：无新消息")
@@ -75,7 +85,6 @@ def iter_run(cfg: Config, *, skip_decrypt: bool = False, dry_run: bool = False,
                 for batch in _pack(msgs, cfg.max_chars_per_request):
                     dumps.append(build_user_prompt(s.display, batch))
                 continue
-
             tasks, usage = extract_session(
                 llm, s.display, msgs, cfg.max_chars_per_request, s.username,
                 log=lambda m: None)

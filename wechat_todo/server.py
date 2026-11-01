@@ -14,8 +14,8 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from . import scan
-from .api_models import (DecryptOut, HealthOut, LLMPatchOut, OkOut, RunsOut, SessionsOut,
-                         SettingsOut, StatsOut, TasksOut, WhitelistOut)
+from .api_models import (DecryptOut, HealthOut, LLMPatchOut, MediaOut, OkOut, RunsOut,
+                         SessionsOut, SettingsOut, StatsOut, TasksOut, WhitelistOut)
 from .config import RESOURCE_ROOT, ROOT, Config, ConfigError, load
 from .decrypt import decrypt
 from .pipeline import iter_run
@@ -141,6 +141,13 @@ class WhitelistSettings(BaseModel):
     whitelist: list[str]
 
 
+class MediaSettings(BaseModel):
+    images: bool | None = None
+    files: bool | None = None
+    voice: bool | None = None
+    max_file_chars: int | None = None
+
+
 class TaskPatch(BaseModel):
     status: str | None = None
     title: str | None = None
@@ -183,6 +190,10 @@ def get_settings() -> dict:
         "max_chars_per_request": cfg.max_chars_per_request,
         "whitelist": cfg.whitelist,
         "text_types": cfg.text_types,
+        "media_images": cfg.media_images,
+        "media_files": cfg.media_files,
+        "media_voice": cfg.media_voice,
+        "max_file_chars": cfg.max_file_chars,
         "db_dir": str(cfg.db_dir) if cfg.db_dir else "",
         "work_dir": str(cfg.work_dir),
         "out_dir": str(cfg.out_dir),
@@ -212,6 +223,22 @@ def set_llm(body: LLMSettings) -> dict:
 def set_whitelist(body: WhitelistSettings) -> dict:
     _toml_set(ROOT / "config.toml", "filter", "whitelist", body.whitelist)
     return {"ok": True, "whitelist": load().whitelist}
+
+
+@app.post("/api/settings/media", response_model=MediaOut)
+def set_media(body: MediaSettings) -> dict:
+    path = ROOT / "config.toml"
+    if body.images is not None:
+        _toml_set(path, "media", "images", body.images)
+    if body.files is not None:
+        _toml_set(path, "media", "files", body.files)
+    if body.voice is not None:
+        _toml_set(path, "media", "voice", body.voice)
+    if body.max_file_chars is not None:
+        _toml_set(path, "media", "max_file_chars", body.max_file_chars)
+    cfg = load()
+    return {"ok": True, "media_images": cfg.media_images, "media_files": cfg.media_files,
+            "media_voice": cfg.media_voice, "max_file_chars": cfg.max_file_chars}
 
 
 @app.get("/api/sessions", response_model=SessionsOut)

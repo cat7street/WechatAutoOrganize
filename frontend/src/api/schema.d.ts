@@ -72,6 +72,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/settings/media": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Set Media */
+        post: operations["set_media_api_settings_media_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/sessions": {
         parameters: {
             query?: never;
@@ -208,6 +225,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/{full_path}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Spa */
+        get: operations["spa__full_path__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -265,6 +299,30 @@ export interface components {
             api_key?: string | null;
             /** Response Format */
             response_format?: string | null;
+        };
+        /** MediaOut */
+        MediaOut: {
+            /** Ok */
+            ok: boolean;
+            /** Media Images */
+            media_images: boolean;
+            /** Media Files */
+            media_files: boolean;
+            /** Media Voice */
+            media_voice: boolean;
+            /** Max File Chars */
+            max_file_chars: number;
+        };
+        /** MediaSettings */
+        MediaSettings: {
+            /** Images */
+            images?: boolean | null;
+            /** Files */
+            files?: boolean | null;
+            /** Voice */
+            voice?: boolean | null;
+            /** Max File Chars */
+            max_file_chars?: number | null;
         };
         /** OkOut */
         OkOut: {
@@ -367,6 +425,14 @@ export interface components {
             work_dir: string;
             /** Out Dir */
             out_dir: string;
+            /** Media Images */
+            media_images: boolean;
+            /** Media Files */
+            media_files: boolean;
+            /** Media Voice */
+            media_voice: boolean;
+            /** Max File Chars */
+            max_file_chars: number;
         };
         /** StatsOut */
         StatsOut: {
@@ -580,6 +646,39 @@ export interface operations {
             };
         };
     };
+    set_media_api_settings_media_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MediaSettings"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MediaOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     sessions_api_sessions_get: {
         parameters: {
             query?: never;
@@ -780,6 +879,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RunsOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    spa__full_path__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                full_path: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
                 };
             };
             /** @description Validation Error */

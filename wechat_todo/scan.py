@@ -9,6 +9,8 @@ import re
 import sqlite3
 from pathlib import Path
 
+from .media import (Attachment, MediaContext, build_hardlink_index, decode_type,
+                    parse_attachment)
 from .schema import Message, SessionInfo
 
 ZSTD_MAGIC = b"\x28\xb5\x2f\xfd"
@@ -113,35 +115,54 @@ def list_sessions(work: Path, whitelist: list[str] | None = None) -> list[Sessio
 def fetch_messages(work: Path, session: SessionInfo, after_seq: int, *,
                    text_types: list[int], senders: dict[int, str] | None = None,
                    displays: dict[str, str] | None = None,
-                   limit: int = 5000) -> list[Message]:
-    """取某会话 sort_seq > after_seq 的文本类消息，已剥前缀、已解压。"""
+                   limit: int = 5000, media: MediaContext | None = None,
+                   max_file_chars: int = 4000, with_images: bool = True,
+                   cache_file=None) -> list[Message]:
+    """取某会话 sort_seq > after_seq 的消息。文本直接读，非文本走 media 解析。
+
+    text_types：当作纯文本处理的 base 类型（默认 [1]）。其余 base 类型全部尝试解析成
+    Attachment（图/文件/引用/转发/转账/语音元信息里能得到多少算多少）。
+    """
     if session.table is None:
         return []
     senders = senders if senders is not None else _sender_map(work)
     displays = displays if displays is not None else _display_names(work)
-    placeholders = ",".join("?" for _ in text_types)
     con = connect(work / "message" / "message_0.db")
     try:
         rows = con.execute(
             f"select local_id, sort_seq, real_sender_id, create_time, local_type, "
             f"message_content, WCDB_CT_message_content from {session.table} "
-            f"where sort_seq > ? and local_type in ({placeholders}) "
-            f"order by sort_seq limit ?",
-            (after_seq, *text_types, limit)).fetchall()
+            f"where sort_seq > ? order by sort_seq limit ?",
+            (after_seq, limit)).fetchall()
     finally:
         con.close()
 
     msgs: list[Message] = []
-    for local_id, seq, sender_id, ts, _ltype, content, _ct in rows:
-        text = decompress(content)
-        if not text:
+    for local_id, seq, sender_id, ts, local_type, content, _ct in rows:
+        body = decompress(content)
+        if not body:
             continue
         if session.is_chatroom:
-            text = PREFIX_RE.sub("", text)
-        text = text.strip(TRAILING_SPACE)
-        if not text:
+            body = PREFIX_RE.sub("", body)
+        body = body.strip(TRAILING_SPACE)
+        if not body:
             continue
+
         sender = senders.get(sender_id, "")
+        base, _sub = decode_type(local_type)
+        atts: list[Attachment] = []
+        text = ""
+        if base in text_types:
+            text = body
+        elif media is not None:
+            att = parse_attachment(body, local_type, media, max_file_chars=max_file_chars,
+                                   with_images=with_images, cache_file=cache_file)
+            if att is None:
+                continue
+            atts.append(att)
+        else:
+            continue
+
         msgs.append(Message(
             session=session.username,
             session_display=session.display,
@@ -151,5 +172,15 @@ def fetch_messages(work: Path, session: SessionInfo, after_seq: int, *,
             sender=sender,
             sender_display=displays.get(sender, sender or "我"),
             text=text,
+            attachments=atts,
         ))
     return msgs
+
+
+def make_media_context(work: Path, account_root: Path | None,
+                       image_tool_dir: Path | None) -> MediaContext | None:
+    if account_root is None or not account_root.is_dir():
+        return None
+    return MediaContext(account_root=account_root,
+                        hardlink=build_hardlink_index(work),
+                        upstream_dir=image_tool_dir)

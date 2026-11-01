@@ -60,6 +60,14 @@ class Config:
     window_hours: int = 48
     max_messages_per_session: int = 5000
 
+    # --- 媒体 ---
+    media_images: bool = True
+    media_files: bool = True
+    media_voice: bool = True
+    max_file_chars: int = 4000
+    image_tool_dir: Path = RESOURCE_ROOT / "tools" / "wechat-decrypt"
+    media_cache: Path = ROOT / "data" / "image_keys.json"
+
     # --- 产出 ---
     state_db: Path = ROOT / "data" / "state.db"
     out_dir: Path = ROOT / "out"
@@ -67,6 +75,10 @@ class Config:
     # --- 面板 ---
     host: str = "127.0.0.1"
     port: int = 8787
+
+    def account_root(self) -> Path | None:
+        """账号目录（媒体文件所在地）：db_storage 的上一级。"""
+        return self.db_dir.parent if self.db_dir else None
 
     def require_llm(self) -> None:
         missing = [n for n, v in (("base_url", self.base_url), ("api_key", self.api_key),
@@ -107,6 +119,7 @@ def load(config_path: Path | None = None) -> Config:
     llm = raw.get("llm", {})
     collect = raw.get("collect", {})
     filt = raw.get("filter", {})
+    med = raw.get("media", {})
     out = raw.get("output", {})
     srv = raw.get("server", {})
 
@@ -131,6 +144,13 @@ def load(config_path: Path | None = None) -> Config:
         text_types=[int(x) for x in filt.get("text_types", [1])],
         window_hours=int(filt.get("window_hours", 48)),
         max_messages_per_session=int(filt.get("max_messages_per_session", 5000)),
+        media_images=bool(med.get("images", True)),
+        media_files=bool(med.get("files", True)),
+        media_voice=bool(med.get("voice", True)),
+        max_file_chars=int(med.get("max_file_chars", 4000)),
+        image_tool_dir=Path(med.get("image_tool_dir")
+                            or RESOURCE_ROOT / "tools" / "wechat-decrypt"),
+        media_cache=Path(med.get("cache") or ROOT / "data" / "image_keys.json"),
         state_db=Path(out.get("state_db") or ROOT / "data" / "state.db"),
         out_dir=Path(out.get("out_dir") or ROOT / "out"),
         host=srv.get("host", "127.0.0.1"),
