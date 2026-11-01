@@ -54,22 +54,27 @@ def _norm(s: str) -> str:
 
 
 def _task_lines(tasks: list[dict]) -> str:
-    lines = ["当前待办清单："]
+    lines = ["当前待办清单（每条的【依据】是要在对话里对照的消息 id）："]
     for t in tasks:
-        bits = [f"  {t['id']}. {t['title']}（{t['status']}" + (f"，{t['due']}" if t.get("due") else "")
+        bits = [f"  {t['id']}. {t['title']}（{t['status']}"
+                + (f"，{t['due']}" if t.get("due") else "")
                 + (f"，{t['owner']}" if t.get("owner") else "")
                 + f"，{t['priority']}）"]
+        ids = ",".join(str(i) for i in t["msg_ids"][:8])
+        bits.append(f"      依据 msg:{ids}" + ("…" if len(t["msg_ids"]) > 8 else ""))
         if t.get("quote"):
             bits.append(f"      原话：“{t['quote'][:50]}”")
         lines.append("\n".join(bits))
     return "\n".join(lines)
 
 
-def _msg_lines(msgs: list[dict]) -> str:
+def _msg_lines(msgs: list[dict], source_ids: set[int] | None = None) -> str:
+    src = source_ids or set()
     out = []
     for m in msgs:
         body = m["text"] or " ".join(a["label"] for a in m["attachments"])
-        out.append(f"[{m['local_id']}] {m['sender_display']}: {body}")
+        mark = "★" if m["local_id"] in src else " "
+        out.append(f"{mark}[{m['local_id']}] {m['sender_display']}: {body}")
     return "\n".join(out)
 
 
@@ -129,7 +134,16 @@ def sync(cfg: Config, store: Store, log=print, *, hours: int | None = None,
                   f"会话：{win.get('display', s.display)}\n"
                   f"时间窗：最近 {hours} 小时，{len(msgs)} 条消息"
                   + ("（超长已截断，保留最新）" if win.get("truncated") else "") + "\n\n")
-        body = _msg_lines(msgs)
+        src_ids = {int(i) for t in tasks for i in t["msg_ids"]}
+        body = _msg_lines(msgs, src_ids)
+        # 早于窗口的待办：把它的原始依据单独捞出来，别让模型凭空判断
+        outside_ids = sorted(i for t in tasks for i in t["msg_ids"] if int(i) not in ids)
+        outside_block = ""
+        if outside_ids:
+            extra = viewer.messages_by_ids(cfg, s.username, list(dict.fromkeys(outside_ids)))
+            if extra:
+                outside_block = ("\n\n---- 早于时间窗的待办原始依据（这些消息不在上面窗口里）----\n"
+                                 + _msg_lines(extra))
 
         chunks = [tasks[i:i + tasks_per_call] for i in range(0, len(tasks), tasks_per_call)] or [[]]
         for idx, group in enumerate(chunks):
@@ -139,7 +153,8 @@ def sync(cfg: Config, store: Store, log=print, *, hours: int | None = None,
             ask_new = idx == 0  # 新待办只让第一批报，避免重复
             user = (header + _task_lines(group)
                     + ("" if ask_new else "\n（本批只做更新/取消，不要报 new）")
-                    + "\n\n---- 完整对话（按时间顺序）----\n" + body
+                    + outside_block
+                    + "\n\n---- 完整对话（按时间顺序；★ 是各待办自己的原始依据）----\n" + body
                     + "\n---- 结束 ----\n只输出 JSON 差异。")
             log(f"[sync] {win.get('display', s.display)}：{len(group)} 条待办 vs {len(msgs)} 条对话")
             data, u = llm.complete_json(SYSTEM, user)

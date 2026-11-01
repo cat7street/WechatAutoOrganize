@@ -181,6 +181,28 @@ def recent_window(cfg: Config, username: str, *, hours: int = 48,
     return {"display": session.display, "messages": msgs, "truncated": truncated}
 
 
+def messages_by_ids(cfg: Config, username: str, msg_ids: list[int],
+                    with_images: bool = False) -> list[dict]:
+    """按 local_id 精确取消息（用于窗口外的待办原始依据）。"""
+    from . import upstream
+    session = _session(cfg, username)
+    if session is None or session.table is None or not msg_ids:
+        return []
+    media_ctx = scan.make_media_context(cfg.work_dir, cfg.account_root(),
+                                        upstream.prepare(cfg))
+    con = scan.connect(cfg.work_dir / "message" / "message_0.db")
+    try:
+        marks = ",".join("?" * len(msg_ids))
+        rows = con.execute(
+            f"select local_id, sort_seq, real_sender_id, create_time, local_type, "
+            f"message_content from {session.table} where local_id in ({marks}) "
+            f"order by sort_seq", list(msg_ids)).fetchall()
+    finally:
+        con.close()
+    displays, senders = scan._display_names(cfg.work_dir), scan._sender_map(cfg.work_dir)
+    return _fmt(session, rows, displays, senders, media_ctx, cfg, with_images)
+
+
 def seq_of(cfg: Config, username: str, msg_ids: list[int]) -> dict[int, int]:
     """local_id → sort_seq，用于定位每条待办在时间线上的位置。"""
     session = _session(cfg, username)
