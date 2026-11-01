@@ -98,6 +98,67 @@ def session_messages(cfg: Config, username: str, *, before_seq: int | None = Non
     }
 
 
+def messages_after(cfg: Config, username: str, after_seq: int, *, limit: int = 80,
+                   with_images: bool = False) -> dict:
+    """取 sort_seq > after_seq 的**最新** limit 条（用于核对“后来的话有没有推翻”）。"""
+    from . import upstream
+    media_ctx = scan.make_media_context(cfg.work_dir, cfg.account_root(),
+                                        upstream.prepare(cfg))
+    session, rows = _rows(cfg, username, before_seq=None, after_seq=after_seq, limit=limit)
+    if session is None:
+        return {"display": username, "messages": []}
+    displays, senders = scan._display_names(cfg.work_dir), scan._sender_map(cfg.work_dir)
+    return {"display": session.display,
+            "messages": _fmt(session, rows, displays, senders, media_ctx, cfg, with_images)}
+
+
+def messages_slice(cfg: Config, username: str, after_seq: int, *, head: int = 40,
+                   tail: int = 40, with_images: bool = False) -> dict:
+    """核对窗口 = 紧接 after_seq 之后的一段（head） + 会话最新一段（tail）。
+
+    只取“最新 N 条”会让所有待办看到同一段尾巴（踩过），只取“紧接之后”又漏掉
+    很晚才发生的推翻，所以两头都取。
+    """
+    from . import upstream
+    media_ctx = scan.make_media_context(cfg.work_dir, cfg.account_root(),
+                                        upstream.prepare(cfg))
+    session = _session(cfg, username)
+    if session is None or session.table is None:
+        return {"display": username, "messages": []}
+    con = scan.connect(cfg.work_dir / "message" / "message_0.db")
+    try:
+        head_rows = con.execute(
+            f"select local_id, sort_seq, real_sender_id, create_time, local_type, "
+            f"message_content from {session.table} where sort_seq > ? "
+            f"order by sort_seq limit ?", (after_seq, head)).fetchall()
+        tail_rows = con.execute(
+            f"select local_id, sort_seq, real_sender_id, create_time, local_type, "
+            f"message_content from {session.table} order by sort_seq desc limit ?",
+            (tail,)).fetchall()
+    finally:
+        con.close()
+    merged = {int(r[0]): r for r in list(reversed(tail_rows)) + head_rows}
+    rows = [merged[k] for k in sorted(merged, key=lambda k: merged[k][1])]
+    displays, senders = scan._display_names(cfg.work_dir), scan._sender_map(cfg.work_dir)
+    return {"display": session.display,
+            "messages": _fmt(session, rows, displays, senders, media_ctx, cfg, with_images)}
+
+
+def seq_of(cfg: Config, username: str, msg_ids: list[int]) -> dict[int, int]:
+    """local_id → sort_seq，用于定位每条待办在时间线上的位置。"""
+    session = _session(cfg, username)
+    if session is None or session.table is None or not msg_ids:
+        return {}
+    con = scan.connect(cfg.work_dir / "message" / "message_0.db")
+    try:
+        marks = ",".join("?" * len(msg_ids))
+        return {int(r[0]): int(r[1]) for r in con.execute(
+            f"select local_id, sort_seq from {session.table} where local_id in ({marks})",
+            list(msg_ids))}
+    finally:
+        con.close()
+
+
 def task_context(cfg: Config, task: dict, *, window: int = 5,
                  with_images: bool = False) -> dict:
     """取这条待办引用消息的前后 window 条，用来核对原文。"""

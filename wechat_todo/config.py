@@ -78,7 +78,7 @@ class Config:
     # --- 媒体（默认关闭：先只跑文本）---
     media_enabled: bool = False
     reconcile_enabled: bool = True
-    reconcile_lookback: int = 150
+    reconcile_lookback: int = 40
     media_images: bool = False
     media_files: bool = False
     media_voice: bool = False
@@ -177,7 +177,7 @@ def load(config_path: Path | None = None) -> Config:
         max_messages_per_session=int(filt.get("max_messages_per_session", 5000)),
         media_enabled=bool(med.get("enabled", False)),
         reconcile_enabled=bool(raw.get("reconcile", {}).get("enabled", True)),
-        reconcile_lookback=int(raw.get("reconcile", {}).get("lookback", 150)),
+        reconcile_lookback=int(raw.get("reconcile", {}).get("lookback", 40)),
         media_images=bool(med.get("images", False)),
         media_files=bool(med.get("files", False)),
         media_voice=bool(med.get("voice", False)),

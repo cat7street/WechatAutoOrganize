@@ -147,7 +147,7 @@ def iter_run(cfg: Config, *, skip_decrypt: bool = False, dry_run: bool = False,
         if cfg.reconcile_enabled:
             yield _ev("stage", stage="reconcile")
             rstats, rusage = reconciler.reconcile(
-                cfg, store, log=lambda m: None, lookback=cfg.reconcile_lookback)
+                cfg, store, log=lambda m: None, window=cfg.reconcile_lookback)
         if rusage is not None:
             prompt_tokens += rusage.prompt_tokens
             completion_tokens += rusage.completion_tokens
