@@ -11,10 +11,14 @@ data/
 *.db-wal
 *.db-shm
 
-# ---- third-party upstream tools and venvs (not redistributed) ----
+# ---- third-party upstream tools and venvs ----
+# vendor/ 是上游脚本的固定快照，**故意入库**（见 vendor/*/UPSTREAM.md，均 MIT）；
+# tools/ 只放本机 venv 和手工解压的副本，不入库。
 tools/
 .venv/
 venv/
+# 快照里绝不能出现密钥文件
+vendor/**/config.json
 
 # ---- frontend ----
 frontend/node_modules/

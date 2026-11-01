@@ -39,7 +39,8 @@ def decrypt(cfg: Config, log=print, force: bool = False) -> Path:
     if not cfg.tool_path.is_file():
         raise ConfigError(
             f"找不到采集工具：{cfg.tool_path}。"
-            "把 TANGandXUE/wcdb-key-tool 解到 tools/wcdb-key-tool-main/。")
+            "上游脚本随仓库内嵌在 vendor/wcdb-key-tool/（MIT 快照），"
+            "文件缺失或被改动时用 git checkout -- vendor/wcdb-key-tool 恢复。")
 
     if force and cfg.work_dir.exists():
         log(f"[decrypt] 清空旧解密目录 {cfg.work_dir}")

@@ -27,8 +27,8 @@ def prepare(cfg: Config) -> Path:
     if not tool_src.is_file():
         raise ConfigError(
             f"找不到采集工具：{tool_src}。"
-            "开发模式下把 TANGandXUE/wcdb-key-tool 解到 tools/wcdb-key-tool-main/；"
-            "exe 模式下应已随包内嵌（检查打包清单）。")
+            "脚本来自 vendor/wcdb-key-tool/（随仓库内嵌），"
+            "exe 模式下应已随包内嵌（检查 scripts/build_exe.ps1 的 --add-data）。")
     shutil.copy2(tool_src, dst / TOOL_NAME)
 
     img_src = cfg.image_tool_dir

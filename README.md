@@ -31,7 +31,7 @@
 2. **老图片的 .dat 已被微信清缓存**：抽样 80 条图片消息，33 条能解，47 条本机没有文件（不是代码问题，是数据没了）。
 3. **语音没有本地音频**：63 条语音消息，全盘 0 个 `.silk/.amr/.mp3`。要转写必须先让微信把语音下载下来，或从 CDN 拉，另开一期。
 
-图片 key 是另一把密钥（V2 格式 = AES-128-ECB + XOR），不在数据库密钥里，需从进程内存另取；本项目直接复用上游 `find_image_key.py`，密钥落在 `tools/wechat-decrypt/config.json` 并缓存到 `data/image_keys.json`。
+图片 key 是另一把密钥（V2 格式 = AES-128-ECB + XOR），不在数据库密钥里，需从进程内存另取；本项目直接复用上游 `find_image_key.py`（`vendor/wechat-decrypt/`），密钥落在运行时就位目录 `data/upstream/config.json` 并缓存到 `data/image_keys.json`。
 
 
 ## 查看原文 / 语义合并 / 反复提及提级
@@ -227,7 +227,7 @@ WechatAutoOrganize.exe --browser "C:\Program Files\Google\Chrome\Application\chr
 
 | 层 | 选型 |
 |---|---|
-| 采集 | [`TANGandXUE/wcdb-key-tool`](https://github.com/TANGandXUE/wcdb-key-tool)（Windows `Config.Cipher` 运行时扫描） |
+| 采集 | [`TANGandXUE/wcdb-key-tool`](https://github.com/TANGandXUE/wcdb-key-tool)（Windows `Config.Cipher` 运行时扫描）；源码按 MIT 许可快照内嵌在 `vendor/wcdb-key-tool/` |
 | 后端 | Python 3.12 + FastAPI + SQLite（stdlib `sqlite3`，无 ORM、无容器） |
 | 模型 | **任何 OpenAI 兼容端点**，`base_url` / `api_key` / `model` 全部可配 |
 | 前端 | React 19 + TypeScript + Vite + Tailwind 4 + shadcn 风格本地组件 + TanStack Query + ECharts |
@@ -240,14 +240,9 @@ WechatAutoOrganize.exe --browser "C:\Program Files\Google\Chrome\Application\chr
 
 - Windows + 微信 4.x **已登录并保持运行**（提 key 要读活进程内存）
 - Python 3.12、Node 20+（`pnpm`）
-- 取上游采集脚本（不随本仓库分发）：
-
-```powershell
-# 拉一份到 tools/（已被 .gitignore 挡住，不会进仓库）
-curl.exe -L -o tools.tgz https://codeload.github.com/TANGandXUE/wcdb-key-tool/tar.gz/refs/heads/main
-tar -xzf tools.tgz -C tools
-Rename-Item tools\wcdb-key-tool-main <...>   # 确保路径为 tools\wcdb-key-tool-main\
-```
+- 上游采集脚本**已在仓库里**：`vendor/wcdb-key-tool/`（数据库 key 与解密）、
+  `vendor/wechat-decrypt/`（图片 key 与 `.dat` 解密），各带上游 `LICENSE` 与 `UPSTREAM.md`。
+  上游被删库过一次，所以不再依赖线上拉取，这一步什么都不用做。
 
 ### 2. 后端
 
@@ -351,6 +346,7 @@ wechat_todo/
   server.py     FastAPI + SSE + 静态托管
 frontend/       React 面板（5 页：概览 / 白名单 / 待办 / 运行 / 设置）
 scripts/        run.py（CLI）、serve.py（单进程）、build_exe.ps1
+vendor/         上游脚本固定快照（MIT）：wcdb-key-tool（库 key/解密）、wechat-decrypt（图片）
 ```
 
 ## 已知限制
@@ -363,5 +359,5 @@ scripts/        run.py（CLI）、serve.py（单进程）、build_exe.ps1
 ## 声明
 
 - 只处理**你自己账号、你自己设备**上的数据；不要在别人的机器上跑。
-- 解密能力来自上游开源项目，本仓库不包含其代码。上游 `chatlog`、`PyWxDump` 已于 2025-10 被发函删库，Windows 4.x 路线请自行评估合规风险。
-- 仓库内不含任何密钥、解密产物或聊天明文；`.env`、`decrypted/`、`keys.json`、`tools/` 均在 `.gitignore` 中。
+- 解密能力来自上游开源项目（`TANGandXUE/wcdb-key-tool`、`328336690/wechat-decrypt`，均 MIT）。两份代码已按许可**固定快照内嵌**在 `vendor/`，各自附带 `LICENSE` 与 `UPSTREAM.md`（来源 URL、快照日期、取舍与升级方式），上游代码一行未改。上游 `chatlog`、`PyWxDump` 已于 2025-10 被发函删库，同类项目随时可能归档；仓库自持一份快照，上游消失了也能跑。Windows 4.x 路线请自行评估合规风险。
+- 仓库内不含任何密钥、解密产物或聊天明文；`.env`、`decrypted/`、`keys.json`、`tools/` 均在 `.gitignore` 中。`vendor/` 只有源码与许可，不含 `config.json` / `all_keys.json`（已在 `.gitignore` 里单独堵住）。

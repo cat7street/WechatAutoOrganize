@@ -146,8 +146,8 @@ KEY_RE_XOR = re.compile(r"XOR key:\s*0x([0-9a-fA-F]{1,2})")
 
 
 def _read_upstream_keys(ctx: MediaContext) -> dict | None:
-    """密钥权威存放处：上游 tools/wechat-decrypt/config.json 的 image_aes_key /
-    image_xor_key（扫描器自己写的，比解析它 stdout 可靠）。"""
+    """密钥权威存放处：上游目录（vendor/wechat-decrypt 就位到 data/upstream）里 config.json
+    的 image_aes_key / image_xor_key（扫描器自己写的，比解析它 stdout 可靠）。"""
     if ctx.upstream_dir is None:
         return None
     cfg_file = ctx.upstream_dir / "config.json"

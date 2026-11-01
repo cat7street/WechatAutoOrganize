@@ -73,7 +73,7 @@ class Config:
     db_dir: Path | None = None
     work_dir: Path = ROOT / "decrypted"
     keys_file: Path = ROOT / "keys.json"
-    tool_path: Path = ROOT / "tools" / "wcdb-key-tool-main" / "wcdb_key_tool_windows.py"
+    tool_path: Path = ROOT / "vendor" / "wcdb-key-tool" / "wcdb_key_tool_windows.py"
 
     # --- 过滤 ---
     whitelist: list[str] = field(default_factory=list)
@@ -103,7 +103,7 @@ class Config:
     media_files: bool = False
     media_voice: bool = False
     max_file_chars: int = 4000
-    image_tool_dir: Path = RESOURCE_ROOT / "tools" / "wechat-decrypt"
+    image_tool_dir: Path = RESOURCE_ROOT / "vendor" / "wechat-decrypt"
     media_cache: Path = ROOT / "data" / "image_keys.json"
 
     # --- 产出 ---
@@ -191,7 +191,7 @@ def load(config_path: Path | None = None) -> Config:
         keys_file=_abs(collect.get("keys_file") or ROOT / "keys.json"),
         tool_path=resolve_resource(
             Path(collect.get("tool_path")
-                 or RESOURCE_ROOT / "tools" / "wcdb-key-tool-main"
+                 or RESOURCE_ROOT / "vendor" / "wcdb-key-tool"
                  / "wcdb_key_tool_windows.py")),
         whitelist=list(filt.get("whitelist", [])),
         text_types=[int(x) for x in filt.get("text_types", [1])],
@@ -215,7 +215,7 @@ def load(config_path: Path | None = None) -> Config:
         media_voice=bool(med.get("voice", False)),
         max_file_chars=int(med.get("max_file_chars", 4000)),
         image_tool_dir=resolve_resource(
-            Path(med.get("image_tool_dir") or RESOURCE_ROOT / "tools" / "wechat-decrypt")),
+            Path(med.get("image_tool_dir") or RESOURCE_ROOT / "vendor" / "wechat-decrypt")),
         media_cache=_abs(med.get("cache") or ROOT / "data" / "image_keys.json"),
         state_db=_abs(out.get("state_db") or ROOT / "data" / "state.db"),
         out_dir=_abs(out.get("out_dir") or ROOT / "out"),

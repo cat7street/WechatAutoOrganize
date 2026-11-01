@@ -16,7 +16,7 @@ max_chars_per_request = 12000
 db_dir = ""
 work_dir = "decrypted"
 keys_file = "keys.json"
-tool_path = "tools/wcdb-key-tool-main/wcdb_key_tool_windows.py"
+tool_path = "vendor/wcdb-key-tool/wcdb_key_tool_windows.py"
 
 # ---- 过滤 ----
 [filter]
@@ -36,8 +36,8 @@ images = true
 files = true
 voice = true
 max_file_chars = 4000
-# 上游 wechat-decrypt（提供 decode_image.py / find_image_key.py）
-image_tool_dir = "tools/wechat-decrypt"
+# 上游 wechat-decrypt 快照（提供 decode_image.py / find_image_key.py），随仓库内嵌
+image_tool_dir = "vendor/wechat-decrypt"
 
 # ---- 产出 ----
 [output]
