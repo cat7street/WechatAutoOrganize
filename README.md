@@ -184,7 +184,10 @@ WECHAT_TODO_MODEL=deepseek-chat
 3. **群聊文本自带 `发送人:\n` 前缀**，喂模型前必须剥掉。
 4. **非文本消息体是 zstd**（magic `28 b5 2f fd`），文本类型（`local_type=1`）才是明文。
 5. **表名规则**：`Msg_<md5(username)>`，用 `session.db.SessionTable.username` 算 md5 匹配（183 会话命中 94 张表，其余确实无消息）。
-6. **`.db-wal` 未合并**：解密只处理主库，未 checkpoint 的最新消息会缺，增量刷新需要 WAL patch（见上游 `wechat-local-reader`）。
+6. **`.db-wal` 必须合并**（已实现 `wechat_todo/walsync.py`）：微信开着时新消息先写进
+   `message_0.db-wal`，主库要等 checkpoint 才更新。只解主库会让「刚发的消息」完全不可见，
+   表现为日志说「无新消息」。做法：拷出「源库 + -wal + -shm」到临时目录，用 SQLCipher 打开
+   让 sqlite 自己重放 WAL，再 `sqlcipher_export` 导出标准明文。实测 19 个库、50MB 约 1.5 秒。
 7. **不要用 PowerShell 5.1 的 `Get-Content -Raw` 改带中文的文件**：会按 GBK 解码再以 UTF-8 写回，把 `.gitignore` 里的规则粘到注释行上——`.env` 就这样差点被提交。
 
 ## 目录
@@ -193,6 +196,7 @@ WECHAT_TODO_MODEL=deepseek-chat
 wechat_todo/
   config.py     TOML + .env 装载，base_url/api_key 可配；缺配置直接报错退出
   decrypt.py    进程内 runpy 调上游采集脚本（冻结 exe 后 sys.executable 会套娃）
+  walsync.py    用 SQLCipher 重放 -wal 后导出明文，否则读不到最新消息
   scan.py       只读读库：会话列表、白名单、增量消息、归一化
   extract.py    提示词与分批
   llm.py        OpenAI 兼容客户端 + JSON 结构化输出

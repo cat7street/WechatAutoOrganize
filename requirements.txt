@@ -8,3 +8,6 @@ pillow>=10.0.0
 openpyxl>=3.1.0
 python-docx>=1.1.0
 pypdf>=5.0.0
+
+# WAL 合并：用 SQLCipher 自己重放 WAL 后导出明文（需从 pypi.org 装）
+sqlcipher3-wheels>=3.50.0
