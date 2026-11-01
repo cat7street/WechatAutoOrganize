@@ -4,14 +4,46 @@ import { useVirtualizer } from "@tanstack/react-virtual";
 import { api, fmtTime } from "@/api/client";
 import type { components } from "@/api/schema";
 import { Badge, Button, Card, CardContent, Input, Spinner } from "@/components/ui";
+import { Drawer } from "@/components/Drawer";
+import { MessageList } from "@/components/Messages";
 
 type Session = components["schemas"]["SessionOut"];
+type ViewMessage = components["schemas"]["ViewMessage"];
 
 export default function Sessions() {
   const qc = useQueryClient();
   const [keyword, setKeyword] = useState("");
   const [draft, setDraft] = useState<string[] | null>(null);
+  const [viewing, setViewing] = useState<Session | null>(null);
+  const [msgs, setMsgs] = useState<ViewMessage[]>([]);
+  const [moreCursor, setMoreCursor] = useState<number | null>(null);
+  const [loadingMsgs, setLoadingMsgs] = useState(false);
   const parentRef = useRef<HTMLDivElement>(null);
+
+  async function openSession(s: Session) {
+    setViewing(s);
+    setMsgs([]);
+    setMoreCursor(null);
+    setLoadingMsgs(true);
+    const { data } = await api.GET("/api/sessions/{username}/messages", {
+      params: { path: { username: s.username }, query: { limit: 60 } },
+    });
+    setMsgs(data?.messages ?? []);
+    setMoreCursor(data?.has_more ? (data.next_before_seq ?? null) : null);
+    setLoadingMsgs(false);
+  }
+
+  async function loadOlder() {
+    if (!viewing || moreCursor === null) return;
+    setLoadingMsgs(true);
+    const { data } = await api.GET("/api/sessions/{username}/messages", {
+      params: { path: { username: viewing.username },
+        query: { limit: 60, before_seq: moreCursor } },
+    });
+    setMsgs((prev) => [...(data?.messages ?? []), ...prev]);
+    setMoreCursor(data?.has_more ? (data.next_before_seq ?? null) : null);
+    setLoadingMsgs(false);
+  }
 
   const sessions = useQuery({
     queryKey: ["sessions"],
@@ -130,12 +162,13 @@ export default function Sessions() {
       </div>
 
       <Card className="min-h-0 flex-1">
-        <div className="grid grid-cols-[48px_1fr_120px_120px_150px] border-b border-line px-3 py-2 text-xs text-fg-muted">
+        <div className="grid grid-cols-[48px_1fr_120px_120px_150px_64px] border-b border-line px-3 py-2 text-xs text-fg-muted">
           <span>纳入</span>
           <span>会话</span>
           <span className="text-right">消息数</span>
           <span className="text-right">未读</span>
           <span className="text-right">最后消息</span>
+          <span />
         </div>
         <div ref={parentRef} className="h-[calc(100%-2.25rem)] overflow-auto">
           <div style={{ height: virtualizer.getTotalSize(), position: "relative" }}>
@@ -152,7 +185,7 @@ export default function Sessions() {
                     height: vi.size,
                     transform: `translateY(${vi.start}px)`,
                   }}
-                  className="grid grid-cols-[48px_1fr_120px_120px_150px] items-center border-b border-line/50 px-3 text-sm hover:bg-surface-2"
+                  className="grid grid-cols-[48px_1fr_120px_120px_150px_64px] items-center border-b border-line/50 px-3 text-sm hover:bg-surface-2"
                 >
                   <input
                     type="checkbox"
@@ -170,12 +203,38 @@ export default function Sessions() {
                   <span className="text-right tabular-nums text-fg">{s.msg_count}</span>
                   <span className="text-right tabular-nums text-fg-muted">{s.unread}</span>
                   <span className="text-right text-xs text-fg-subtle">{fmtTime(s.last_ts)}</span>
+                  <span className="text-right">
+                    <Button size="sm" variant="ghost" onClick={() => openSession(s)}>
+                      查看
+                    </Button>
+                  </span>
                 </div>
               );
             })}
           </div>
         </div>
       </Card>
+
+      <Drawer
+        open={viewing !== null}
+        title={viewing ? viewing.display : ""}
+        subtitle={viewing ? `${viewing.username} · 共 ${viewing.msg_count} 条` : null}
+        onClose={() => setViewing(null)}
+      >
+        <div className="mb-3 flex justify-center">
+          <Button size="sm" variant="outline" disabled={moreCursor === null || loadingMsgs}
+            onClick={loadOlder}>
+            {moreCursor === null ? "已到最早" : loadingMsgs ? "加载中…" : "加载更早的"}
+          </Button>
+        </div>
+        {loadingMsgs && msgs.length === 0 ? (
+          <div className="flex items-center gap-2 text-sm text-fg-muted">
+            <Spinner /> 读取消息…
+          </div>
+        ) : (
+          <MessageList messages={msgs} />
+        )}
+      </Drawer>
     </div>
   );
 }

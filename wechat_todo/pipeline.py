@@ -9,6 +9,7 @@ import json
 import time
 from collections.abc import Iterator
 
+from . import merge as merger
 from . import render, scan, upstream
 from .config import Config
 from .decrypt import decrypt
@@ -111,6 +112,15 @@ def iter_run(cfg: Config, *, skip_decrypt: bool = False, dry_run: bool = False,
 
         inserted, dup = store.save_tasks(all_tasks, run_id)
         stats.update(tasks=len(all_tasks), inserted=inserted, duplicates=dup)
+
+        yield _ev("stage", stage="merge")
+        mstats, musage = merger.merge_pending(cfg, store, log=lambda m: None)
+        prompt_tokens += musage.prompt_tokens
+        completion_tokens += musage.completion_tokens
+        stats["merge"] = mstats
+        yield _ev("log", msg=(f"合并：{mstats['groups']} 组、吸收 {mstats['merged_away']} 条、"
+                              f"提级 {mstats['lifted']} 条（候选 {mstats['candidates']}）"))
+
         yield _ev("stage", stage="render")
         fresh = store.tasks_of_run(run_id)
         path = render.write_daily(fresh, cfg.out_dir, dt.date.today())

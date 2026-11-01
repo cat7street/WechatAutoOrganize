@@ -82,6 +82,54 @@ class TaskOut(BaseModel):
     status: str
     created_at: int
     run_id: str | None = None
+    mentions: int = 1
+    merged_into: int | None = None
+    merged_from: list[int] = []
+
+
+class ViewAttachment(BaseModel):
+    kind: str
+    label: str
+    text: str = ""
+    has_image: bool = False
+
+
+class ViewMessage(BaseModel):
+    local_id: int
+    sort_seq: int
+    ts: int
+    sender: str
+    sender_display: str
+    type: str
+    text: str = ""
+    attachments: list[ViewAttachment] = []
+    is_source: bool = False
+
+
+class SessionMessagesOut(BaseModel):
+    session: str
+    display: str
+    messages: list[ViewMessage]
+    has_more: bool = False
+    next_before_seq: int | None = None
+
+
+class TaskContextOut(BaseModel):
+    task_id: int
+    session: str | None = None
+    display: str | None = None
+    messages: list[ViewMessage]
+    missing: str | None = None
+
+
+class MergeOut(BaseModel):
+    ok: bool
+    candidates: int
+    groups: int
+    merged_away: int
+    lifted: int
+    prompt_tokens: int
+    completion_tokens: int
 
 
 class TasksOut(BaseModel):

@@ -44,13 +44,31 @@ create index if not exists idx_tasks_status on tasks(status, created_at desc);
 """
 
 
+def _row_to_dict(row) -> dict:
+    d = dict(row)
+    d["msg_ids"] = json.loads(d.get("msg_ids") or "[]")
+    d["merged_from"] = json.loads(d.get("merged_from") or "[]")
+    return d
+
+
 class Store:
     def __init__(self, path: Path):
         path.parent.mkdir(parents=True, exist_ok=True)
         self.con = sqlite3.connect(path)
         self.con.row_factory = sqlite3.Row
         self.con.executescript(DDL)
+        self._migrate()
         self.con.commit()
+
+    def _migrate(self) -> None:
+        """补列：合并 / 反复提及需要 mentions、merged_into、merged_from。"""
+        cols = {r[1] for r in self.con.execute("pragma table_info(tasks)")}
+        for name, ddl in (
+                ("mentions", "alter table tasks add column mentions integer default 1"),
+                ("merged_into", "alter table tasks add column merged_into integer"),
+                ("merged_from", "alter table tasks add column merged_from text default '[]'")):
+            if name not in cols:
+                self.con.execute(ddl)
 
     # ---------- 水位线 ----------
     def get_cursor(self, session: str) -> int:
@@ -95,18 +113,53 @@ class Store:
         args.append(limit)
         out = []
         for r in self.con.execute(sql, args):
-            d = dict(r)
-            d["msg_ids"] = json.loads(d["msg_ids"] or "[]")
-            out.append(d)
+            out.append(_row_to_dict(r))
         return out
+
+    def list_pending_for_merge(self, limit: int = 150) -> list[dict]:
+        out = []
+        for r in self.con.execute(
+                "select * from tasks where status='pending' order by created_at desc limit ?",
+                (limit,)):
+            out.append(_row_to_dict(r))
+        return out
+
+    def apply_merge(self, canonical_id: int, member_ids: list[int], *, title: str,
+                    owner: str, due: str, priority: str) -> dict | None:
+        """把一簇合到 canonical：msg_ids 取并集，mentions = 并集条数，写回优先级。"""
+        ids = [canonical_id] + [i for i in member_ids if i != canonical_id]
+        rows = {r["id"]: dict(r) for r in self.con.execute(
+            f"select * from tasks where id in ({','.join('?' * len(ids))})", ids)}
+        if canonical_id not in rows:
+            return None
+        union: list[int] = []
+        for r in rows.values():
+            for m in json.loads(r["msg_ids"] or "[]"):
+                if m not in union:
+                    union.append(m)
+        union.sort()
+        self.con.execute(
+            "update tasks set title=?,owner=?,due=?,priority=?,msg_ids=?,mentions=?,"
+            "merged_from=? where id=?",
+            (title, owner, due, priority, json.dumps(union), len(union),
+             json.dumps(sorted(set(ids))), canonical_id))
+        others = [i for i in ids if i != canonical_id]
+        if others:
+            self.con.execute(
+                f"update tasks set status='merged',merged_into=? where id in "
+                f"({','.join('?' * len(others))})", (canonical_id, *others))
+        self.con.commit()
+        return {"id": canonical_id, "mentions": len(union), "members": len(ids)}
+
+    def get_task(self, task_id: int) -> dict | None:
+        r = self.con.execute("select * from tasks where id=?", (task_id,)).fetchone()
+        return _row_to_dict(r) if r else None
 
     def tasks_of_run(self, run_id: str) -> list[dict]:
         out = []
         for r in self.con.execute(
                 "select * from tasks where run_id=? order by created_at desc", (run_id,)):
-            d = dict(r)
-            d["msg_ids"] = json.loads(d["msg_ids"] or "[]")
-            out.append(d)
+            out.append(_row_to_dict(r))
         return out
 
     def set_task_status(self, task_id: int, status: str) -> bool:

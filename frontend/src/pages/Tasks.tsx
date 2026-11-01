@@ -1,16 +1,21 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { api, fmtTime } from "@/api/client";
+import { useSearchParams } from "react-router-dom";
+import { api } from "@/api/client";
 import type { components } from "@/api/schema";
 import { Badge, Button, Card, CardContent, Spinner, Td, Th } from "@/components/ui";
+import { Drawer } from "@/components/Drawer";
+import { MessageList } from "@/components/Messages";
 
 type Task = components["schemas"]["TaskOut"];
+type Ctx = components["schemas"]["TaskContextOut"];
 
 const FILTERS = [
   { key: "", label: "全部" },
   { key: "pending", label: "待办中" },
   { key: "done", label: "已完成" },
   { key: "ignored", label: "已忽略" },
+  { key: "merged", label: "已合并" },
 ];
 
 const PRIO_TONE: Record<string, "high" | "medium" | "low"> = {
@@ -22,6 +27,10 @@ const PRIO_TONE: Record<string, "high" | "medium" | "low"> = {
 export default function Tasks() {
   const qc = useQueryClient();
   const [filter, setFilter] = useState("pending");
+  const [ctxTask, setCtxTask] = useState<Task | null>(null);
+  const [ctx, setCtx] = useState<Ctx | null>(null);
+  const [ctxLoading, setCtxLoading] = useState(false);
+  const [params, setParams] = useSearchParams();
 
   const tasks = useQuery({
     queryKey: ["tasks", filter],
@@ -46,6 +55,47 @@ export default function Tasks() {
     },
   });
 
+  const merge = useMutation({
+    mutationFn: async () => {
+      const { data } = await api.POST("/api/merge");
+      return data;
+    },
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: ["tasks"] });
+      await qc.invalidateQueries({ queryKey: ["stats"] });
+    },
+  });
+
+  async function openContext(t: Task) {
+    setCtxTask(t);
+    setCtx(null);
+    setCtxLoading(true);
+    setParams({ task: String(t.id) }, { replace: true });
+    const { data } = await api.GET("/api/tasks/{task_id}/context", {
+      params: { path: { task_id: t.id }, query: { window: 6 } },
+    });
+    setCtx(data ?? null);
+    setCtxLoading(false);
+  }
+
+  function closeContext() {
+    setCtxTask(null);
+    setParams({}, { replace: true });
+  }
+
+  // 深链：/tasks?task=123 直接展开某条待办的上下文
+  useEffect(() => {
+    const id = params.get("task");
+    if (!id) return;
+    void (async () => {
+      const { data } = await api.GET("/api/tasks/{task_id}", {
+        params: { path: { task_id: Number(id) } },
+      });
+      if (data) await openContext(data as Task);
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const items = tasks.data?.items ?? [];
 
   return (
@@ -62,6 +112,15 @@ export default function Tasks() {
           </Button>
         ))}
         <span className="ml-auto text-xs text-fg-subtle">{items.length} 条</span>
+        <Button size="sm" variant="outline" onClick={() => merge.mutate()}
+          disabled={merge.isPending}>
+          {merge.isPending ? "合并中…" : "AI 合并去重"}
+        </Button>
+        {merge.data && (
+          <span className="text-[11px] text-ok">
+            {merge.data.groups} 组 / 吸收 {merge.data.merged_away} / 提级 {merge.data.lifted}
+          </span>
+        )}
       </div>
 
       {tasks.isLoading && (
@@ -76,12 +135,12 @@ export default function Tasks() {
             <thead>
               <tr>
                 <Th className="w-20">优先级</Th>
+                <Th className="w-14">提及</Th>
                 <Th>待办</Th>
                 <Th className="w-28">责任人</Th>
                 <Th className="w-28">截止</Th>
-                <Th className="w-44">来源会话</Th>
-                <Th className="w-40">创建</Th>
-                <Th className="w-40">操作</Th>
+                <Th className="w-32">来源会话</Th>
+                <Th className="w-56">操作</Th>
               </tr>
             </thead>
             <tbody>
@@ -90,25 +149,32 @@ export default function Tasks() {
                   <Td>
                     <Badge tone={PRIO_TONE[t.priority] ?? "low"}>{t.priority}</Badge>
                   </Td>
+                  <Td className="tabular-nums text-fg-muted">{t.mentions ?? 1}</Td>
                   <Td>
-                    <div className={t.status === "done" ? "text-fg-subtle line-through" : "text-fg-strong"}>
+                    <div
+                      className={
+                        t.status === "done"
+                          ? "text-fg-subtle line-through"
+                          : "font-medium text-fg-strong"
+                      }
+                    >
                       {t.title}
                     </div>
                     {t.quote && (
-                      <div className="mt-1 max-w-xl text-[11px] text-fg-subtle">
+                      <div className="mt-1 max-w-xl text-[11px] text-fg-muted">
                         “{t.quote}”
-                        <span className="ml-1 text-fg-faint">
-                          msg:{t.msg_ids.join(",")}
-                        </span>
+                        <span className="ml-1 text-fg-faint">msg:{t.msg_ids.join(",")}</span>
                       </div>
                     )}
                   </Td>
                   <Td className="text-fg-muted">{t.owner || "-"}</Td>
                   <Td className="text-fg-muted">{t.due || "-"}</Td>
                   <Td className="truncate text-fg-muted">{t.session_display}</Td>
-                  <Td className="text-xs text-fg-subtle">{fmtTime(t.created_at)}</Td>
                   <Td>
-                    <div className="flex gap-1">
+                    <div className="flex flex-nowrap gap-1">
+                      <Button size="sm" variant="outline" onClick={() => openContext(t)}>
+                        看上下文
+                      </Button>
                       {t.status !== "done" && (
                         <Button size="sm" variant="secondary"
                           onClick={() => patch.mutate({ id: t.id, status: "done" })}>
@@ -121,7 +187,7 @@ export default function Tasks() {
                           忽略
                         </Button>
                       )}
-                      {t.status !== "pending" && (
+                      {t.status !== "pending" && t.status !== "merged" && (
                         <Button size="sm" variant="ghost"
                           onClick={() => patch.mutate({ id: t.id, status: "pending" })}>
                           恢复
@@ -142,6 +208,28 @@ export default function Tasks() {
           </table>
         </CardContent>
       </Card>
+
+      <Drawer
+        open={ctxTask !== null}
+        title={ctxTask ? ctxTask.title : ""}
+        subtitle={
+          ctxTask ? (
+            <span>
+              {ctxTask.session_display} · 提及 {ctxTask.mentions ?? 1} 次 · msg:
+              {ctxTask.msg_ids.join(",")}
+            </span>
+          ) : null
+        }
+        onClose={closeContext}
+      >
+        {ctxLoading && (
+          <div className="flex items-center gap-2 text-sm text-fg-muted">
+            <Spinner /> 读取原文…
+          </div>
+        )}
+        {ctx?.missing && <div className="mb-2 text-sm text-medium">{ctx.missing}</div>}
+        {ctx && <MessageList messages={ctx.messages} />}
+      </Drawer>
     </div>
   );
 }

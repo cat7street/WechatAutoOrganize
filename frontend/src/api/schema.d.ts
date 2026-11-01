@@ -181,7 +181,8 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /** Get Task */
+        get: operations["get_task_api_tasks__task_id__get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -219,6 +220,57 @@ export interface paths {
         get: operations["runs_api_runs_get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/sessions/{username}/messages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Session Messages */
+        get: operations["session_messages_api_sessions__username__messages_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tasks/{task_id}/context": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Task Context */
+        get: operations["task_context_api_tasks__task_id__context_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/merge": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Run Merge */
+        post: operations["run_merge_api_merge_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -324,6 +376,23 @@ export interface components {
             /** Max File Chars */
             max_file_chars?: number | null;
         };
+        /** MergeOut */
+        MergeOut: {
+            /** Ok */
+            ok: boolean;
+            /** Candidates */
+            candidates: number;
+            /** Groups */
+            groups: number;
+            /** Merged Away */
+            merged_away: number;
+            /** Lifted */
+            lifted: number;
+            /** Prompt Tokens */
+            prompt_tokens: number;
+            /** Completion Tokens */
+            completion_tokens: number;
+        };
         /** OkOut */
         OkOut: {
             /** Ok */
@@ -365,6 +434,22 @@ export interface components {
         RunsOut: {
             /** Items */
             items: components["schemas"]["RunOut"][];
+        };
+        /** SessionMessagesOut */
+        SessionMessagesOut: {
+            /** Session */
+            session: string;
+            /** Display */
+            display: string;
+            /** Messages */
+            messages: components["schemas"]["ViewMessage"][];
+            /**
+             * Has More
+             * @default false
+             */
+            has_more: boolean;
+            /** Next Before Seq */
+            next_before_seq?: number | null;
         };
         /** SessionOut */
         SessionOut: {
@@ -455,6 +540,19 @@ export interface components {
             /** Recent Daily */
             recent_daily: components["schemas"]["DailyStat"][];
         };
+        /** TaskContextOut */
+        TaskContextOut: {
+            /** Task Id */
+            task_id: number;
+            /** Session */
+            session?: string | null;
+            /** Display */
+            display?: string | null;
+            /** Messages */
+            messages: components["schemas"]["ViewMessage"][];
+            /** Missing */
+            missing?: string | null;
+        };
         /** TaskOut */
         TaskOut: {
             /** Id */
@@ -485,6 +583,18 @@ export interface components {
             created_at: number;
             /** Run Id */
             run_id?: string | null;
+            /**
+             * Mentions
+             * @default 1
+             */
+            mentions: number;
+            /** Merged Into */
+            merged_into?: number | null;
+            /**
+             * Merged From
+             * @default []
+             */
+            merged_from: number[];
         };
         /** TaskPatch */
         TaskPatch: {
@@ -518,6 +628,53 @@ export interface components {
             input?: unknown;
             /** Context */
             ctx?: Record<string, never>;
+        };
+        /** ViewAttachment */
+        ViewAttachment: {
+            /** Kind */
+            kind: string;
+            /** Label */
+            label: string;
+            /**
+             * Text
+             * @default
+             */
+            text: string;
+            /**
+             * Has Image
+             * @default false
+             */
+            has_image: boolean;
+        };
+        /** ViewMessage */
+        ViewMessage: {
+            /** Local Id */
+            local_id: number;
+            /** Sort Seq */
+            sort_seq: number;
+            /** Ts */
+            ts: number;
+            /** Sender */
+            sender: string;
+            /** Sender Display */
+            sender_display: string;
+            /** Type */
+            type: string;
+            /**
+             * Text
+             * @default
+             */
+            text: string;
+            /**
+             * Attachments
+             * @default []
+             */
+            attachments: components["schemas"]["ViewAttachment"][];
+            /**
+             * Is Source
+             * @default false
+             */
+            is_source: boolean;
         };
         /** WhitelistOut */
         WhitelistOut: {
@@ -806,6 +963,37 @@ export interface operations {
             };
         };
     };
+    get_task_api_tasks__task_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                task_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaskOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     patch_task_api_tasks__task_id__patch: {
         parameters: {
             query?: never;
@@ -888,6 +1076,95 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    session_messages_api_sessions__username__messages_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+                before_seq?: number | null;
+                images?: number;
+            };
+            header?: never;
+            path: {
+                username: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionMessagesOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    task_context_api_tasks__task_id__context_get: {
+        parameters: {
+            query?: {
+                window?: number;
+                images?: number;
+            };
+            header?: never;
+            path: {
+                task_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaskContextOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    run_merge_api_merge_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MergeOut"];
                 };
             };
         };

@@ -14,10 +14,13 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from . import scan
-from .api_models import (DecryptOut, HealthOut, LLMPatchOut, MediaOut, OkOut, RunsOut,
-                         SessionsOut, SettingsOut, StatsOut, TasksOut, WhitelistOut)
+from . import view as viewer
+from .api_models import (DecryptOut, HealthOut, LLMPatchOut, MediaOut, MergeOut, OkOut,
+                         RunsOut, SessionMessagesOut, SessionsOut, SettingsOut, StatsOut,
+                         TaskContextOut, TaskOut, TasksOut, WhitelistOut)
 from .config import RESOURCE_ROOT, ROOT, Config, ConfigError, load
 from .decrypt import decrypt
+from .merge import merge_pending
 from .pipeline import iter_run
 from .store import Store
 
@@ -307,6 +310,14 @@ def tasks(status: str | None = None, limit: int = 500) -> dict:
     return {"items": store.list_tasks(status=status, limit=limit)}
 
 
+@app.get("/api/tasks/{task_id}", response_model=TaskOut)
+def get_task(task_id: int) -> dict:
+    task = Store(_cfg().state_db).get_task(task_id)
+    if task is None:
+        raise HTTPException(404, f"待办 {task_id} 不存在")
+    return task
+
+
 @app.patch("/api/tasks/{task_id}", response_model=OkOut)
 def patch_task(task_id: int, body: TaskPatch) -> dict:
     store = Store(_cfg().state_db)
@@ -327,6 +338,34 @@ def stats() -> dict:
 @app.get("/api/runs", response_model=RunsOut)
 def runs(limit: int = 20) -> dict:
     return {"items": Store(_cfg().state_db).list_runs(limit=limit)}
+
+
+@app.get("/api/sessions/{username}/messages", response_model=SessionMessagesOut)
+def session_messages(username: str, limit: int = 80, before_seq: int | None = None,
+                     images: int = 0) -> dict:
+    cfg = _cfg()
+    if not cfg.work_dir.is_dir():
+        raise HTTPException(409, "尚未解密")
+    return viewer.session_messages(cfg, username, before_seq=before_seq, limit=limit,
+                                   with_images=bool(images))
+
+
+@app.get("/api/tasks/{task_id}/context", response_model=TaskContextOut)
+def task_context(task_id: int, window: int = 5, images: int = 0) -> dict:
+    cfg = _cfg()
+    task = Store(cfg.state_db).get_task(task_id)
+    if task is None:
+        raise HTTPException(404, f"待办 {task_id} 不存在")
+    return viewer.task_context(cfg, task, window=window, with_images=bool(images))
+
+
+@app.post("/api/merge", response_model=MergeOut)
+def run_merge() -> dict:
+    cfg = _cfg()
+    cfg.require_llm()
+    stats, usage = merge_pending(cfg, Store(cfg.state_db), log=lambda m: None)
+    return {"ok": True, **stats, "prompt_tokens": usage.prompt_tokens,
+            "completion_tokens": usage.completion_tokens}
 
 
 # ------------------------- 静态产物（vite build 的 dist） -------------------------
