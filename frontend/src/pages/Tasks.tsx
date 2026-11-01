@@ -15,6 +15,7 @@ const FILTERS = [
   { key: "pending", label: "待办中" },
   { key: "done", label: "已完成" },
   { key: "ignored", label: "已忽略" },
+  { key: "cancelled", label: "已取消" },
   { key: "merged", label: "已合并" },
 ];
 
@@ -164,6 +165,14 @@ export default function Tasks() {
                       <div className="mt-1 max-w-xl text-[11px] text-fg-muted">
                         “{t.quote}”
                         <span className="ml-1 text-fg-faint">msg:{t.msg_ids.join(",")}</span>
+                      </div>
+                    )}
+                    {t.cancelled_reason && (
+                      <div className="mt-1 max-w-xl text-[11px] text-high">
+                        已在对话里被推翻：{t.cancelled_reason}
+                        <span className="ml-1 text-fg-faint">
+                          msg:{t.cancelled_msg_ids.join(",")}
+                        </span>
                       </div>
                     )}
                   </Td>

@@ -48,3 +48,8 @@ out_dir = "out"
 [server]
 host = "127.0.0.1"
 port = 8787
+
+[reconcile]
+# 回溯核对："后面又说不做了"的待办自动剔除
+enabled = true
+lookback = 150

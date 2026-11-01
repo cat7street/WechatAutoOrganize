@@ -595,6 +595,16 @@ export interface components {
              * @default []
              */
             merged_from: number[];
+            /**
+             * Cancelled Reason
+             * @default
+             */
+            cancelled_reason: string;
+            /**
+             * Cancelled Msg Ids
+             * @default []
+             */
+            cancelled_msg_ids: number[];
         };
         /** TaskPatch */
         TaskPatch: {

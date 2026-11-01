@@ -48,6 +48,7 @@ def _row_to_dict(row) -> dict:
     d = dict(row)
     d["msg_ids"] = json.loads(d.get("msg_ids") or "[]")
     d["merged_from"] = json.loads(d.get("merged_from") or "[]")
+    d["cancelled_msg_ids"] = json.loads(d.get("cancelled_msg_ids") or "[]")
     return d
 
 
@@ -66,7 +67,10 @@ class Store:
         for name, ddl in (
                 ("mentions", "alter table tasks add column mentions integer default 1"),
                 ("merged_into", "alter table tasks add column merged_into integer"),
-                ("merged_from", "alter table tasks add column merged_from text default '[]'")):
+                ("merged_from", "alter table tasks add column merged_from text default '[]'"),
+                ("cancelled_reason", "alter table tasks add column cancelled_reason text default ''"),
+                ("cancelled_msg_ids",
+                 "alter table tasks add column cancelled_msg_ids text default '[]'")):
             if name not in cols:
                 self.con.execute(ddl)
 
@@ -150,6 +154,22 @@ class Store:
                 f"({','.join('?' * len(others))})", (canonical_id, *others))
         self.con.commit()
         return {"id": canonical_id, "mentions": len(union), "members": len(ids)}
+
+    def list_pending_brief(self, limit: int = 200) -> list[dict]:
+        """给抽取提示词用的精简清单：只带 id / title / due。"""
+        return [{"id": r["id"], "title": r["title"], "due": r["due"] or ""}
+                for r in self.con.execute(
+                    "select id,title,due from tasks where status='pending' "
+                    "order by id desc limit ?", (limit,))]
+
+    def cancel_task(self, task_id: int, reason: str, msg_ids: list[int]) -> bool:
+        """对话里被明确推翻的待办：置 cancelled 并记下依据。"""
+        cur = self.con.execute(
+            "update tasks set status='cancelled',cancelled_reason=?,cancelled_msg_ids=? "
+            "where id=? and status='pending'",
+            (reason, json.dumps(sorted(set(msg_ids))), task_id))
+        self.con.commit()
+        return cur.rowcount > 0
 
     def get_task(self, task_id: int) -> dict | None:
         r = self.con.execute("select * from tasks where id=?", (task_id,)).fetchone()
