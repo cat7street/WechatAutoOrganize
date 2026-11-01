@@ -1,0 +1,35 @@
+# 密钥与配置
+.env
+config.toml
+keys.json
+all_keys.json
+
+# 明文聊天记录：绝不进仓库
+decrypted/
+out/
+data/
+*.db-wal
+*.db-shm
+
+# 上游工具与虚拟环境
+tools/
+.venv/
+venv/
+
+# 前端
+frontend/node_modules/
+frontend/dist/
+node_modules/
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+build/
+dist/
+*.spec
+
+# ������ʱ/����ļ�
+_*
+_scratch/
+*.tsbuildinfo

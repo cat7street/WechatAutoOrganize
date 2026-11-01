@@ -1,0 +1,36 @@
+# ---- LLM：任何 OpenAI 兼容端点都能接，改 base_url 即可 ----
+[llm]
+base_url = "https://api.deepseek.com/v1"
+model = "deepseek-chat"
+# json_object 兼容面最广；端点支持结构化输出时改 json_schema
+response_format = "json_object"
+temperature = 0.0
+timeout = 180
+max_chars_per_request = 12000
+
+# ---- 采集 ----
+[collect]
+# 留空则自动探测 ~/Documents/xwechat_files/*/db_storage
+db_dir = ""
+work_dir = "decrypted"
+keys_file = "keys.json"
+tool_path = "tools/wcdb-key-tool-main/wcdb_key_tool_windows.py"
+
+# ---- 过滤 ----
+[filter]
+# 会话关键词：wxid / xxxx@chatroom / 备注名 / 群名片段，任一命中即纳入
+whitelist = []
+# 参与抽取的消息类型（1=文本）
+text_types = [1]
+# 首次运行回看多少小时
+window_hours = 48
+
+# ---- 产出 ----
+[output]
+state_db = "data/state.db"
+out_dir = "out"
+
+# ---- 面板 ----
+[server]
+host = "127.0.0.1"
+port = 8787
