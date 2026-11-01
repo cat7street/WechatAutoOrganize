@@ -186,6 +186,8 @@ class DecryptOut(BaseModel):
 class ScheduleOut(BaseModel):
     enabled: bool
     interval_minutes: int
+    daily_times: list[str] = []
+    mode: str = "full"
     next_at: int | None = None
     last_at: int | None = None
     last_result: str = ""

@@ -81,7 +81,7 @@ def _blocking_run() -> None:
             STATE.lock.notify_all()
 
 
-SCHEDULER = Scheduler(_blocking_run, interval_minutes=60,
+SCHEDULER = Scheduler(_blocking_run, interval_minutes=0,
                       busy=lambda: STATE.running, log=print)
 
 
@@ -89,6 +89,7 @@ SCHEDULER = Scheduler(_blocking_run, interval_minutes=60,
 def _start_scheduler() -> None:
     cfg = _cfg()
     SCHEDULER.interval = cfg.schedule_interval_minutes
+    SCHEDULER.daily_times = list(cfg.schedule_daily_times)
     if cfg.schedule_enabled:
         try:
             cfg.require_whitelist()
@@ -106,7 +107,10 @@ def _stop_scheduler() -> None:
 class ScheduleReq(BaseModel):
     enabled: bool | None = None
     interval_minutes: int | None = None
+    daily_times: list[str] | None = None
     skip_decrypt: bool | None = None
+    mode: str | None = None
+    run_now: bool = False
 
 
 @app.get("/api/schedule", response_model=ScheduleOut)
@@ -114,17 +118,32 @@ def get_schedule() -> dict:
     cfg = _cfg()
     st = SCHEDULER.status()
     st["skip_decrypt"] = cfg.schedule_skip_decrypt
+    st["mode"] = cfg.schedule_mode
     return st
 
 
 @app.post("/api/schedule", response_model=ScheduleOut)
 def set_schedule(body: ScheduleReq) -> dict:
     path = ROOT / "config.toml"
+    changed_plan = False
     if body.interval_minutes is not None:
-        _toml_set(path, "schedule", "interval_minutes", max(1, int(body.interval_minutes)))
-        SCHEDULER.set_interval(int(body.interval_minutes))
+        _toml_set(path, "schedule", "interval_minutes", max(0, int(body.interval_minutes)))
+        changed_plan = True
+    if body.daily_times is not None:
+        _toml_set(path, "schedule", "daily_times",
+                  [t.strip() for t in body.daily_times if t and t.strip()])
+        changed_plan = True
     if body.skip_decrypt is not None:
         _toml_set(path, "schedule", "skip_decrypt", bool(body.skip_decrypt))
+    if body.mode is not None and body.mode in ("full", "incremental"):
+        _toml_set(path, "schedule", "mode", body.mode)
+    if changed_plan:
+        cfg_now = _cfg()
+        SCHEDULER.interval = cfg_now.schedule_interval_minutes
+        SCHEDULER.daily_times = list(cfg_now.schedule_daily_times)
+        if SCHEDULER.enabled:
+            SCHEDULER.stop()
+            SCHEDULER.start(run_now=False)
     if body.enabled is not None:
         _toml_set(path, "schedule", "enabled", bool(body.enabled))
         if body.enabled:
@@ -132,13 +151,21 @@ def set_schedule(body: ScheduleReq) -> dict:
             try:
                 cfg.require_whitelist()
                 cfg.require_llm()
-            except ConfigError as exc:
+                SCHEDULER.start(run_now=body.run_now)
+            except (ConfigError, ValueError) as exc:
                 raise HTTPException(400, str(exc)) from exc
-            SCHEDULER.start(run_now=False)
         else:
             SCHEDULER.stop()
+    elif body.run_now:
+        if STATE.running:
+            raise HTTPException(409, "已有一次运行在进行中")
+        threading.Thread(target=_worker,
+                         args=(_cfg(), _cfg().schedule_skip_decrypt, False,
+                               _cfg().schedule_mode), daemon=True).start()
     st = SCHEDULER.status()
-    st["skip_decrypt"] = _cfg().schedule_skip_decrypt
+    cfg_end = _cfg()
+    st["skip_decrypt"] = cfg_end.schedule_skip_decrypt
+    st["mode"] = cfg_end.schedule_mode
     return st
 
 

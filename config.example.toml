@@ -77,6 +77,8 @@ enabled = false
 # 定时任务用哪种模式：full = 48h 全量对账（推荐）/ incremental = 只抽新消息
 mode = "full"
 interval_minutes = 60
+# 每天固定时刻也跑（可多个），与间隔取最近的一次；两个都设就都会生效
+daily_times = []
 # 定时那轮跳过重新解密（WAL 仍会合并，更快）
 skip_decrypt = false
 # 启动后立刻跑一轮

@@ -461,6 +461,16 @@ export interface components {
             enabled: boolean;
             /** Interval Minutes */
             interval_minutes: number;
+            /**
+             * Daily Times
+             * @default []
+             */
+            daily_times: string[];
+            /**
+             * Mode
+             * @default full
+             */
+            mode: string;
             /** Next At */
             next_at?: number | null;
             /** Last At */
@@ -492,8 +502,17 @@ export interface components {
             enabled?: boolean | null;
             /** Interval Minutes */
             interval_minutes?: number | null;
+            /** Daily Times */
+            daily_times?: string[] | null;
             /** Skip Decrypt */
             skip_decrypt?: boolean | null;
+            /** Mode */
+            mode?: string | null;
+            /**
+             * Run Now
+             * @default false
+             */
+            run_now: boolean;
         };
         /** SessionMessagesOut */
         SessionMessagesOut: {

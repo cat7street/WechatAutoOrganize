@@ -90,6 +90,7 @@ class Config:
     # 定时
     schedule_enabled: bool = False
     schedule_interval_minutes: int = 60
+    schedule_daily_times: list[str] = field(default_factory=list)
     schedule_skip_decrypt: bool = False
     schedule_run_on_start: bool = True
     schedule_mode: str = "full"
@@ -201,6 +202,7 @@ def load(config_path: Path | None = None) -> Config:
         pipeline_mode=raw.get("pipeline", {}).get("mode", "incremental"),
         schedule_enabled=bool(raw.get("schedule", {}).get("enabled", False)),
         schedule_interval_minutes=int(raw.get("schedule", {}).get("interval_minutes", 60)),
+        schedule_daily_times=list(raw.get("schedule", {}).get("daily_times", []) or []),
         schedule_skip_decrypt=bool(raw.get("schedule", {}).get("skip_decrypt", False)),
         schedule_run_on_start=bool(raw.get("schedule", {}).get("run_on_start", True)),
         schedule_mode=raw.get("schedule", {}).get("mode", "full"),
