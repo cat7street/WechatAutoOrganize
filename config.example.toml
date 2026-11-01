@@ -60,3 +60,19 @@ max_context_chars = 160000
 tasks_per_call = 12
 # 单次运行最多几次调用
 max_calls = 8
+
+[pipeline]
+# incremental：只抽水位线之后的新消息（快、便宜）
+# full：把最近 window_hours 的完整对话 + 当前待办一起给模型，让它整体更新（定时任务用）
+mode = "incremental"
+
+[schedule]
+# 内置定时：自动解密 → 全量对账 → 合并去重 → 出当天 Markdown
+enabled = false
+# 定时任务用哪种模式：full = 48h 全量对账（推荐）/ incremental = 只抽新消息
+mode = "full"
+interval_minutes = 60
+# 定时那轮跳过重新解密（WAL 仍会合并，更快）
+skip_decrypt = false
+# 启动后立刻跑一轮
+run_on_start = true

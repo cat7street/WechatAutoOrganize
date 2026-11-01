@@ -37,6 +37,12 @@ class ConfigError(RuntimeError):
     """配置缺失或自相矛盾。宁可报错退出，也不猜。"""
 
 
+def _abs(v) -> Path:
+    # 相对路径一律按数据根目录（exe 旁边 / 仓库根）解析，不依赖当前工作目录
+    p = Path(v)
+    return p if p.is_absolute() else (ROOT / p)
+
+
 def resolve_resource(p: Path) -> Path:
     """相对路径的归属：先看数据目录（exe 旁边 / 仓库根），再看打包资源目录。
 
@@ -78,6 +84,16 @@ class Config:
     # --- 媒体（默认关闭：先只跑文本）---
     media_enabled: bool = False
     reconcile_enabled: bool = True
+    # 运行模式：incremental 只抽新消息；full = 48h 全量对账
+    pipeline_mode: str = "incremental"
+
+    # 定时
+    schedule_enabled: bool = False
+    schedule_interval_minutes: int = 60
+    schedule_skip_decrypt: bool = False
+    schedule_run_on_start: bool = True
+    schedule_mode: str = "full"
+
     reconcile_window_hours: int = 48
     reconcile_max_chars: int = 160_000
     reconcile_tasks_per_call: int = 12
@@ -168,8 +184,8 @@ def load(config_path: Path | None = None) -> Config:
         timeout=float(llm.get("timeout", 180.0)),
         max_chars_per_request=int(llm.get("max_chars_per_request", 12000)),
         db_dir=Path(db_dir) if db_dir else None,
-        work_dir=Path(collect.get("work_dir") or ROOT / "decrypted"),
-        keys_file=Path(collect.get("keys_file") or ROOT / "keys.json"),
+        work_dir=_abs(collect.get("work_dir") or ROOT / "decrypted"),
+        keys_file=_abs(collect.get("keys_file") or ROOT / "keys.json"),
         tool_path=resolve_resource(
             Path(collect.get("tool_path")
                  or RESOURCE_ROOT / "tools" / "wcdb-key-tool-main"
@@ -180,6 +196,12 @@ def load(config_path: Path | None = None) -> Config:
         max_messages_per_session=int(filt.get("max_messages_per_session", 5000)),
         media_enabled=bool(med.get("enabled", False)),
         reconcile_enabled=bool(raw.get("reconcile", {}).get("enabled", True)),
+        pipeline_mode=raw.get("pipeline", {}).get("mode", "incremental"),
+        schedule_enabled=bool(raw.get("schedule", {}).get("enabled", False)),
+        schedule_interval_minutes=int(raw.get("schedule", {}).get("interval_minutes", 60)),
+        schedule_skip_decrypt=bool(raw.get("schedule", {}).get("skip_decrypt", False)),
+        schedule_run_on_start=bool(raw.get("schedule", {}).get("run_on_start", True)),
+        schedule_mode=raw.get("schedule", {}).get("mode", "full"),
         reconcile_window_hours=int(raw.get("reconcile", {}).get("window_hours", 48)),
         reconcile_max_chars=int(raw.get("reconcile", {}).get("max_context_chars", 160000)),
         reconcile_tasks_per_call=int(raw.get("reconcile", {}).get("tasks_per_call", 12)),
@@ -190,9 +212,9 @@ def load(config_path: Path | None = None) -> Config:
         max_file_chars=int(med.get("max_file_chars", 4000)),
         image_tool_dir=resolve_resource(
             Path(med.get("image_tool_dir") or RESOURCE_ROOT / "tools" / "wechat-decrypt")),
-        media_cache=Path(med.get("cache") or ROOT / "data" / "image_keys.json"),
-        state_db=Path(out.get("state_db") or ROOT / "data" / "state.db"),
-        out_dir=Path(out.get("out_dir") or ROOT / "out"),
+        media_cache=_abs(med.get("cache") or ROOT / "data" / "image_keys.json"),
+        state_db=_abs(out.get("state_db") or ROOT / "data" / "state.db"),
+        out_dir=_abs(out.get("out_dir") or ROOT / "out"),
         host=srv.get("host", "127.0.0.1"),
         port=int(srv.get("port", 8787)),
     )

@@ -181,3 +181,14 @@ class RunsOut(BaseModel):
 class DecryptOut(BaseModel):
     ok: bool
     work_dir: str
+
+
+class ScheduleOut(BaseModel):
+    enabled: bool
+    interval_minutes: int
+    next_at: int | None = None
+    last_at: int | None = None
+    last_result: str = ""
+    runs: int = 0
+    skipped: int = 0
+    skip_decrypt: bool = False

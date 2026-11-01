@@ -16,12 +16,14 @@ from pydantic import BaseModel
 from . import scan
 from . import view as viewer
 from .api_models import (DecryptOut, HealthOut, LLMPatchOut, MediaOut, MergeOut, OkOut,
-                         RunsOut, SessionMessagesOut, SessionsOut, SettingsOut, StatsOut,
-                         TaskContextOut, TaskOut, TasksOut, WhitelistOut)
+                         RunsOut, ScheduleOut, SessionMessagesOut, SessionsOut,
+                         SettingsOut, StatsOut, TaskContextOut, TaskOut, TasksOut,
+                         WhitelistOut)
 from .config import RESOURCE_ROOT, ROOT, Config, ConfigError, load
 from .decrypt import decrypt
 from .merge import merge_pending
 from .pipeline import iter_run
+from .scheduler import Scheduler
 from .store import Store
 
 VERSION = "0.1.0"
@@ -62,9 +64,89 @@ class RunState:
 STATE = RunState()
 
 
-def _worker(cfg: Config, skip_decrypt: bool, dry_run: bool) -> None:
+def _blocking_run() -> None:
+    """定时器用：同步跑完一轮，事件照样推给面板 SSE。"""
+    cfg = _cfg()
+    cfg.require_whitelist()
+    cfg.require_llm()
+    STATE.reset()
     try:
-        for ev in iter_run(cfg, skip_decrypt=skip_decrypt, dry_run=dry_run):
+        for ev in iter_run(cfg, skip_decrypt=cfg.schedule_skip_decrypt,
+                           dry_run=False, mode=cfg.schedule_mode):
+            STATE.push(ev)
+    finally:
+        with STATE.lock:
+            STATE.running = False
+            STATE.finished = True
+            STATE.lock.notify_all()
+
+
+SCHEDULER = Scheduler(_blocking_run, interval_minutes=60,
+                      busy=lambda: STATE.running, log=print)
+
+
+@app.on_event("startup")
+def _start_scheduler() -> None:
+    cfg = _cfg()
+    SCHEDULER.interval = cfg.schedule_interval_minutes
+    if cfg.schedule_enabled:
+        try:
+            cfg.require_whitelist()
+            cfg.require_llm()
+            SCHEDULER.start(run_now=cfg.schedule_run_on_start)
+        except ConfigError as exc:
+            print(f"[schedule] 未启动：{exc}")
+
+
+@app.on_event("shutdown")
+def _stop_scheduler() -> None:
+    SCHEDULER.stop()
+
+
+class ScheduleReq(BaseModel):
+    enabled: bool | None = None
+    interval_minutes: int | None = None
+    skip_decrypt: bool | None = None
+
+
+@app.get("/api/schedule", response_model=ScheduleOut)
+def get_schedule() -> dict:
+    cfg = _cfg()
+    st = SCHEDULER.status()
+    st["skip_decrypt"] = cfg.schedule_skip_decrypt
+    return st
+
+
+@app.post("/api/schedule", response_model=ScheduleOut)
+def set_schedule(body: ScheduleReq) -> dict:
+    path = ROOT / "config.toml"
+    if body.interval_minutes is not None:
+        _toml_set(path, "schedule", "interval_minutes", max(1, int(body.interval_minutes)))
+        SCHEDULER.set_interval(int(body.interval_minutes))
+    if body.skip_decrypt is not None:
+        _toml_set(path, "schedule", "skip_decrypt", bool(body.skip_decrypt))
+    if body.enabled is not None:
+        _toml_set(path, "schedule", "enabled", bool(body.enabled))
+        if body.enabled:
+            cfg = _cfg()
+            try:
+                cfg.require_whitelist()
+                cfg.require_llm()
+            except ConfigError as exc:
+                raise HTTPException(400, str(exc)) from exc
+            SCHEDULER.start(run_now=False)
+        else:
+            SCHEDULER.stop()
+    st = SCHEDULER.status()
+    st["skip_decrypt"] = _cfg().schedule_skip_decrypt
+    return st
+
+
+def _worker(cfg: Config, skip_decrypt: bool, dry_run: bool,
+            mode: str | None = None) -> None:
+    try:
+        for ev in iter_run(cfg, skip_decrypt=skip_decrypt, dry_run=dry_run,
+                           mode=mode):
             STATE.push(ev)
     except Exception as exc:  # 已经由 iter_run 产出 error 事件的情况不会走到这里
         STATE.push({"type": "error", "msg": f"{type(exc).__name__}: {exc}"})
@@ -163,6 +245,7 @@ class TaskPatch(BaseModel):
 class RunRequest(BaseModel):
     skip_decrypt: bool = False
     dry_run: bool = False
+    mode: str | None = None   # incremental | full
 
 
 # ------------------------- 接口 -------------------------
@@ -275,7 +358,9 @@ def start_run(body: RunRequest) -> dict:
     except ConfigError as exc:
         raise HTTPException(400, str(exc)) from exc
     STATE.reset()
-    threading.Thread(target=_worker, args=(cfg, body.skip_decrypt, body.dry_run),
+    threading.Thread(target=_worker,
+                     args=(cfg, body.skip_decrypt, body.dry_run,
+                           body.mode or cfg.pipeline_mode),
                      daemon=True).start()
     return {"ok": True}
 

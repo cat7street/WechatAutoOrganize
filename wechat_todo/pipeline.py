@@ -9,6 +9,7 @@ import json
 import time
 from collections.abc import Iterator
 
+from . import fullsync
 from . import merge as merger
 from . import reconcile as reconciler
 from . import render, scan, upstream
@@ -25,7 +26,9 @@ def _ev(kind: str, **payload) -> dict:
 
 
 def iter_run(cfg: Config, *, skip_decrypt: bool = False, dry_run: bool = False,
-             only_session: str | None = None) -> Iterator[dict]:
+             only_session: str | None = None, mode: str | None = None) -> Iterator[dict]:
+    """mode = "incremental"（只抽新消息）| "full"（48h 全量对账，定时任务用这个）。"""
+    mode = mode or cfg.pipeline_mode
     cfg.require_whitelist()
     store = Store(cfg.state_db)
     run_id = store.start_run()
@@ -78,6 +81,26 @@ def iter_run(cfg: Config, *, skip_decrypt: bool = False, dry_run: bool = False,
                 yield _ev("log", msg=f"媒体已开启：{len(media_ctx.hardlink)} 条硬链接记录")
         else:
             yield _ev("log", msg="纯文本模式：非文本消息（图/文件/语音）跳过")
+
+        # ── 全量对账：48h 完整对话 + 当前清单 → 模型整体更新 ──
+        if mode == "full" and not dry_run:
+            yield _ev("stage", stage="sync")
+            sstats, susage, newest = fullsync.sync(
+                cfg, store, log=lambda m: None, hours=cfg.window_hours,
+                max_context_chars=cfg.reconcile_max_chars,
+                tasks_per_call=cfg.reconcile_tasks_per_call,
+                max_calls=cfg.reconcile_max_calls, session_filter=only_session)
+            prompt_tokens += susage.prompt_tokens
+            completion_tokens += susage.completion_tokens
+            stats["sync"] = sstats
+            if newest:
+                for s in sessions:
+                    store.set_cursor(s.username, newest)
+            yield _ev("log", msg=(f"全量对账（{cfg.window_hours}h）：新增 {sstats['inserted']}、"
+                                  f"更新 {sstats['updated']}、取消 {sstats['cancelled']}、"
+                                  f"被替代 {sstats['superseded']}、恢复 {sstats['restored']}、"
+                                  f"驳回 {sstats['rejected']}（{sstats['calls']} 次调用）"))
+            sessions = []  # 全量模式不再逐会话抽增量
 
         llm = None if dry_run else LLM(cfg)
         all_tasks = []
@@ -145,7 +168,7 @@ def iter_run(cfg: Config, *, skip_decrypt: bool = False, dry_run: bool = False,
         # 回溯核对：后续对话里被明确推翻的待办，不要留在待办列表里
         rstats, rusage = {"tasks": 0, "calls": 0, "cancelled": 0, "superseded": 0,
                           "restored": 0, "suspected": 0, "rejected": 0}, None
-        if cfg.reconcile_enabled:
+        if cfg.reconcile_enabled and mode != "full":
             yield _ev("stage", stage="reconcile")
             rstats, rusage = reconciler.reconcile(
                 cfg, store, log=lambda m: None,
@@ -178,10 +201,10 @@ def iter_run(cfg: Config, *, skip_decrypt: bool = False, dry_run: bool = False,
 
 
 def run_once(cfg: Config, *, skip_decrypt: bool = False, dry_run: bool = False,
-             log=print) -> dict:
+             mode: str | None = None, log=print) -> dict:
     """CLI 用：把事件流打到控制台，返回最终统计。"""
     stats: dict = {}
-    for ev in iter_run(cfg, skip_decrypt=skip_decrypt, dry_run=dry_run):
+    for ev in iter_run(cfg, skip_decrypt=skip_decrypt, dry_run=dry_run, mode=mode):
         t = ev["type"]
         if t == "log":
             log(ev["msg"])

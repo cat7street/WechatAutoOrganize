@@ -20,6 +20,8 @@ def main() -> int:
     ap.add_argument("--skip-decrypt", action="store_true", help="复用现有解密目录")
     ap.add_argument("--dry-run", action="store_true", help="只组装请求包，不调模型")
     ap.add_argument("--session", help="只处理某个会话（username 或备注名）")
+    ap.add_argument("--full", action="store_true",
+                    help="全量对账：把 window_hours 的完整对话+现有清单交给模型整体更新")
     args = ap.parse_args()
 
     try:
@@ -43,7 +45,8 @@ def main() -> int:
         return 0
 
     try:
-        stats = run_once(cfg, skip_decrypt=args.skip_decrypt, dry_run=args.dry_run)
+        stats = run_once(cfg, skip_decrypt=args.skip_decrypt, dry_run=args.dry_run,
+                         mode="full" if args.full else None)
     except ConfigError as exc:
         print(f"[配置错误] {exc}", file=sys.stderr)
         return 2

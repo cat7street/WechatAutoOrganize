@@ -4,6 +4,24 @@
  */
 
 export interface paths {
+    "/api/schedule": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Schedule */
+        get: operations["get_schedule_api_schedule_get"];
+        put?: never;
+        /** Set Schedule */
+        post: operations["set_schedule_api_schedule_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/health": {
         parameters: {
             query?: never;
@@ -429,11 +447,53 @@ export interface components {
              * @default false
              */
             dry_run: boolean;
+            /** Mode */
+            mode?: string | null;
         };
         /** RunsOut */
         RunsOut: {
             /** Items */
             items: components["schemas"]["RunOut"][];
+        };
+        /** ScheduleOut */
+        ScheduleOut: {
+            /** Enabled */
+            enabled: boolean;
+            /** Interval Minutes */
+            interval_minutes: number;
+            /** Next At */
+            next_at?: number | null;
+            /** Last At */
+            last_at?: number | null;
+            /**
+             * Last Result
+             * @default
+             */
+            last_result: string;
+            /**
+             * Runs
+             * @default 0
+             */
+            runs: number;
+            /**
+             * Skipped
+             * @default 0
+             */
+            skipped: number;
+            /**
+             * Skip Decrypt
+             * @default false
+             */
+            skip_decrypt: boolean;
+        };
+        /** ScheduleReq */
+        ScheduleReq: {
+            /** Enabled */
+            enabled?: boolean | null;
+            /** Interval Minutes */
+            interval_minutes?: number | null;
+            /** Skip Decrypt */
+            skip_decrypt?: boolean | null;
         };
         /** SessionMessagesOut */
         SessionMessagesOut: {
@@ -717,6 +777,59 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    get_schedule_api_schedule_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScheduleOut"];
+                };
+            };
+        };
+    };
+    set_schedule_api_schedule_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ScheduleReq"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScheduleOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     health_api_health_get: {
         parameters: {
             query?: never;

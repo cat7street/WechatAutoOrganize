@@ -180,7 +180,8 @@ class Store:
     def restore_task(self, task_id: int, note: str) -> bool:
         """曾被取消、后来又被要求做：恢复成待办，并留痕。"""
         cur = self.con.execute(
-            "update tasks set status='pending',state_note=? where id=? and status='cancelled'",
+            "update tasks set status='pending',state_note=?,cancelled_reason='',"
+            "cancelled_msg_ids='[]' where id=? and status='cancelled'",
             (note, task_id))
         self.con.commit()
         return cur.rowcount > 0

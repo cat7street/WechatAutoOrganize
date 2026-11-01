@@ -17,6 +17,21 @@ export default function Settings() {
   const [saved, setSaved] = useState(false);
   const [media, setMedia] = useState({ images: true, files: true, voice: true, chars: 4000 });
 
+  const schedule = useQuery({
+    queryKey: ["schedule"],
+    queryFn: async () => (await api.GET("/api/schedule")).data,
+    refetchInterval: 15000,
+  });
+  const saveSchedule = useMutation({
+    mutationFn: async (body: { enabled?: boolean; interval_minutes?: number }) => {
+      const { error } = await api.POST("/api/schedule", { body });
+      if (error) throw new Error((error as { detail?: string }).detail ?? "保存失败");
+    },
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: ["schedule"] });
+    },
+  });
+
   useEffect(() => {
     if (!settings.data) return;
     setBaseUrl(settings.data.base_url);
@@ -165,6 +180,69 @@ export default function Settings() {
             <Button onClick={() => saveMedia.mutate()} disabled={saveMedia.isPending}>
               {saveMedia.isPending ? "保存中…" : "保存媒体设置"}
             </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>定时运行</CardTitle>
+          <Badge tone={schedule.data?.enabled ? "ok" : "low"}>
+            {schedule.data?.enabled ? "已开启" : "已关闭"}
+          </Badge>
+        </CardHeader>
+        <CardContent className="grid gap-3">
+          <p className="text-xs text-fg-muted">
+            自动跑一轮：解密 → WAL 合并 → <b>48 小时全量对账</b>（把完整对话 + 当前待办一起交给模型，
+            让它整体更新）→ 合并去重 → 出当天 Markdown。定时一律用全量对账，避免只看增量导致判断失真。
+          </p>
+          <div className="flex flex-wrap items-end gap-3">
+            <div className="w-40">
+              <Label>间隔（分钟）</Label>
+              <Input
+                type="number"
+                min={5}
+                value={schedule.data?.interval_minutes ?? 60}
+                onChange={(e) => saveSchedule.mutate({ interval_minutes: Number(e.target.value) })}
+              />
+            </div>
+            <Button
+              onClick={() => saveSchedule.mutate({ enabled: !schedule.data?.enabled })}
+              disabled={saveSchedule.isPending}
+            >
+              {schedule.data?.enabled ? "关闭定时" : "开启定时"}
+            </Button>
+            {saveSchedule.error && (
+              <span className="text-xs text-high">{(saveSchedule.error as Error).message}</span>
+            )}
+          </div>
+          <div className="grid grid-cols-2 gap-2 text-xs text-fg-muted md:grid-cols-4">
+            <div>
+              下次运行
+              <div className="text-fg">
+                {schedule.data?.next_at
+                  ? new Date(schedule.data.next_at * 1000).toLocaleString("zh-CN", { hour12: false })
+                  : "-"}
+              </div>
+            </div>
+            <div>
+              上次运行
+              <div className="text-fg">
+                {schedule.data?.last_at
+                  ? new Date(schedule.data.last_at * 1000).toLocaleString("zh-CN", { hour12: false })
+                  : "-"}
+              </div>
+            </div>
+            <div>
+              上次结果
+              <div className="text-fg">{schedule.data?.last_result || "-"}</div>
+            </div>
+            <div>
+              已跑/跳过
+              <div className="text-fg">
+                {schedule.data?.runs ?? 0} / {schedule.data?.skipped ?? 0}
+              </div>
+            </div>
           </div>
         </CardContent>
       </Card>
