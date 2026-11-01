@@ -1,22 +1,20 @@
-# 密钥与配置
-.env
+# 瀵嗛挜涓庨厤缃?.env
 config.toml
 keys.json
 all_keys.json
 
-# 明文聊天记录：绝不进仓库
+# 鏄庢枃鑱婂ぉ璁板綍锛氱粷涓嶈繘浠撳簱
 decrypted/
 out/
 data/
 *.db-wal
 *.db-shm
 
-# 上游工具与虚拟环境
-tools/
+# 涓婃父宸ュ叿涓庤櫄鎷熺幆澧?tools/
 .venv/
 venv/
 
-# 前端
+# 鍓嶇
 frontend/node_modules/
 frontend/dist/
 node_modules/
@@ -29,7 +27,7 @@ build/
 dist/
 *.spec
 
-# ������ʱ/����ļ�
-_*
+# 本地临时/侦察文件
+/_*
 _scratch/
 *.tsbuildinfo
