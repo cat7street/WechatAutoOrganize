@@ -9,7 +9,7 @@ import json
 import time
 from collections.abc import Iterator
 
-from . import render, scan
+from . import render, scan, upstream
 from .config import Config
 from .decrypt import decrypt
 from .extract import build_user_prompt, extract_session, _pack
@@ -55,7 +55,7 @@ def iter_run(cfg: Config, *, skip_decrypt: bool = False, dry_run: bool = False,
         media_ctx = None
         if cfg.media_enabled:
             media_ctx = scan.make_media_context(cfg.work_dir, cfg.account_root(),
-                                               cfg.image_tool_dir)
+                                               upstream.prepare(cfg))
             if media_ctx is None:
                 yield _ev("log", msg="媒体开启但未找到账号目录，非文本消息将跳过")
             else:

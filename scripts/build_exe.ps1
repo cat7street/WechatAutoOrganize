@@ -13,11 +13,15 @@ if (-not (Test-Path "$root\frontend\dist\index.html")) {
 & $py -m PyInstaller --noconfirm --clean --onefile --name WechatAutoOrganize `
     --add-data "$root\frontend\dist;frontend\dist" `
     --add-data "$root\tools\wcdb-key-tool-main\wcdb_key_tool_windows.py;tools\wcdb-key-tool-main" `
+    --add-data "$root\tools\wechat-decrypt\decode_image.py;tools\wechat-decrypt" `
+    --add-data "$root\tools\wechat-decrypt\find_image_key.py;tools\wechat-decrypt" `
     --hidden-import uvicorn.logging `
     --hidden-import uvicorn.loops.auto `
     --hidden-import uvicorn.protocols.http.auto `
     --hidden-import uvicorn.protocols.websockets.auto `
     --hidden-import uvicorn.lifespan.on `
+    --hidden-import Crypto.Cipher.AES `
+    --hidden-import Crypto.Util.Padding `
     --distpath "$root\dist" `
     --workpath "$root\build" `
     --specpath "$root\build" `

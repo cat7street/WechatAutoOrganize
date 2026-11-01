@@ -80,7 +80,7 @@ export default function Settings() {
               onChange={(e) => setBaseUrl(e.target.value)}
               placeholder="https://api.deepseek.com/v1"
             />
-            <p className="mt-1 text-[11px] text-zinc-500">
+            <p className="mt-1 text-[11px] text-fg-subtle">
               任何 OpenAI 兼容端点都行，例如 https://api.openai.com/v1、本地 http://127.0.0.1:11434/v1
             </p>
           </div>
@@ -94,7 +94,7 @@ export default function Settings() {
               <select
                 value={format}
                 onChange={(e) => setFormat(e.target.value)}
-                className="h-9 w-full rounded-md border border-zinc-700 bg-zinc-950 px-2 text-sm"
+                className="h-9 w-full rounded-md border border-line-strong bg-field px-2 text-sm text-fg"
               >
                 <option value="json_object">json_object（兼容面最广）</option>
                 <option value="json_schema">json_schema（端点需支持）</option>
@@ -114,8 +114,8 @@ export default function Settings() {
             <Button onClick={() => save.mutate()} disabled={save.isPending}>
               {save.isPending ? "保存中…" : "保存"}
             </Button>
-            {saved && <span className="text-xs text-emerald-400">已保存</span>}
-            {save.error && <span className="text-xs text-red-400">{(save.error as Error).message}</span>}
+            {saved && <span className="text-xs text-ok">已保存</span>}
+            {save.error && <span className="text-xs text-high">{(save.error as Error).message}</span>}
           </div>
         </CardContent>
       </Card>
@@ -126,7 +126,7 @@ export default function Settings() {
           <Badge tone="info">图片走视觉 · 文件抽正文</Badge>
         </CardHeader>
         <CardContent className="grid gap-3">
-          <label className="flex items-center gap-2 text-sm text-zinc-300">
+          <label className="flex items-center gap-2 text-sm text-fg">
             <input
               type="checkbox"
               className="accent-emerald-500"
@@ -135,7 +135,7 @@ export default function Settings() {
             />
             图片：解 .dat 后作为图像喂给多模态模型（原图为 wxgf/HEVC，实际用的是可解码的变体）
           </label>
-          <label className="flex items-center gap-2 text-sm text-zinc-300">
+          <label className="flex items-center gap-2 text-sm text-fg">
             <input
               type="checkbox"
               className="accent-emerald-500"
@@ -144,7 +144,7 @@ export default function Settings() {
             />
             文件：本地抽正文（xlsx/docx/pdf/txt/csv/md）后当文本
           </label>
-          <label className="flex items-center gap-2 text-sm text-zinc-300">
+          <label className="flex items-center gap-2 text-sm text-fg">
             <input
               type="checkbox"
               className="accent-emerald-500"
@@ -176,27 +176,27 @@ export default function Settings() {
         <CardContent className="grid grid-cols-2 gap-3 text-sm">
           <div>
             <Label>首次回看窗口</Label>
-            <div className="text-zinc-200">{settings.data?.window_hours ?? "-"} 小时</div>
+            <div className="text-fg-strong">{settings.data?.window_hours ?? "-"} 小时</div>
           </div>
           <div>
             <Label>单请求字符预算</Label>
-            <div className="text-zinc-200">{settings.data?.max_chars_per_request ?? "-"}</div>
+            <div className="text-fg-strong">{settings.data?.max_chars_per_request ?? "-"}</div>
           </div>
           <div>
             <Label>数据库目录</Label>
-            <div className="break-all text-xs text-zinc-400">{settings.data?.db_dir || "-"}</div>
+            <div className="break-all text-xs text-fg-muted">{settings.data?.db_dir || "-"}</div>
           </div>
           <div>
             <Label>解密产物目录</Label>
-            <div className="break-all text-xs text-zinc-400">{settings.data?.work_dir || "-"}</div>
+            <div className="break-all text-xs text-fg-muted">{settings.data?.work_dir || "-"}</div>
           </div>
           <div>
             <Label>Markdown 输出目录</Label>
-            <div className="break-all text-xs text-zinc-400">{settings.data?.out_dir || "-"}</div>
+            <div className="break-all text-xs text-fg-muted">{settings.data?.out_dir || "-"}</div>
           </div>
           <div>
             <Label>纳入的消息类型</Label>
-            <div className="text-zinc-400">{settings.data?.text_types?.join(", ") || "-"}</div>
+            <div className="text-fg-muted">{settings.data?.text_types?.join(", ") || "-"}</div>
           </div>
         </CardContent>
       </Card>

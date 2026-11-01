@@ -82,12 +82,12 @@ export default function Run() {
         <CardHeader>
           <CardTitle>运行控制</CardTitle>
           <div className="flex items-center gap-3">
-            <label className="flex items-center gap-1.5 text-xs text-zinc-400">
+            <label className="flex items-center gap-1.5 text-xs text-fg-muted">
               <input type="checkbox" className="accent-emerald-500" checked={skipDecrypt}
                 onChange={(e) => setSkipDecrypt(e.target.checked)} />
               跳过解密（复用现有解密目录）
             </label>
-            <label className="flex items-center gap-1.5 text-xs text-zinc-400">
+            <label className="flex items-center gap-1.5 text-xs text-fg-muted">
               <input type="checkbox" className="accent-emerald-500" checked={dryRun}
                 onChange={(e) => setDryRun(e.target.checked)} />
               dry-run（只组装请求包，不调模型）
@@ -121,20 +121,20 @@ export default function Run() {
         <CardContent className="p-0">
           <div
             ref={boxRef}
-            className="h-[calc(100vh-22rem)] overflow-auto rounded-b-xl bg-black/60 p-4 font-mono text-xs leading-6"
+            className="h-[calc(100vh-22rem)] overflow-auto rounded-b-xl bg-log-bg p-4 font-mono text-xs leading-6"
           >
-            {lines.length === 0 && <div className="text-zinc-600">等待运行…</div>}
+            {lines.length === 0 && <div className="text-fg-faint">等待运行…</div>}
             {lines.map((l, i) => (
               <div
                 key={i}
                 className={
                   l.kind === "error"
-                    ? "text-red-400"
+                    ? "text-high"
                     : l.kind === "stage"
-                      ? "mt-2 text-sky-400"
+                      ? "mt-2 text-info"
                       : l.kind === "done"
-                        ? "text-emerald-400"
-                        : "text-zinc-300"
+                        ? "text-ok"
+                        : "text-fg"
                 }
               >
                 {l.text}

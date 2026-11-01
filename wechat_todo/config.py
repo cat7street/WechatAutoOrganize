@@ -37,6 +37,20 @@ class ConfigError(RuntimeError):
     """配置缺失或自相矛盾。宁可报错退出，也不猜。"""
 
 
+def resolve_resource(p: Path) -> Path:
+    """相对路径的归属：先看数据目录（exe 旁边 / 仓库根），再看打包资源目录。
+
+    这样同一份 config.toml 在 dev 和 exe 下都能用，不必让用户手改相对/绝对路径。
+    """
+    if p.is_absolute():
+        return p
+    for base in (ROOT, RESOURCE_ROOT):
+        cand = base / p
+        if cand.exists():
+            return cand
+    return ROOT / p
+
+
 @dataclass
 class Config:
     # --- LLM（OpenAI 兼容）---
@@ -76,6 +90,17 @@ class Config:
     # --- 面板 ---
     host: str = "127.0.0.1"
     port: int = 8787
+
+    # 数据根目录（exe 旁边 / 仓库根）；放最后，避免 dataclass 默认值顺序问题
+    root: Path = ROOT
+
+    @property
+    def tool_path_resolved(self) -> Path:
+        return resolve_resource(self.tool_path)
+
+    @property
+    def image_tool_dir_resolved(self) -> Path:
+        return resolve_resource(self.image_tool_dir)
 
     def account_root(self) -> Path | None:
         """账号目录（媒体文件所在地）：db_storage 的上一级。"""
@@ -138,9 +163,10 @@ def load(config_path: Path | None = None) -> Config:
         db_dir=Path(db_dir) if db_dir else None,
         work_dir=Path(collect.get("work_dir") or ROOT / "decrypted"),
         keys_file=Path(collect.get("keys_file") or ROOT / "keys.json"),
-        tool_path=Path(collect.get("tool_path")
-                       or RESOURCE_ROOT / "tools" / "wcdb-key-tool-main"
-                       / "wcdb_key_tool_windows.py"),
+        tool_path=resolve_resource(
+            Path(collect.get("tool_path")
+                 or RESOURCE_ROOT / "tools" / "wcdb-key-tool-main"
+                 / "wcdb_key_tool_windows.py")),
         whitelist=list(filt.get("whitelist", [])),
         text_types=[int(x) for x in filt.get("text_types", [1])],
         window_hours=int(filt.get("window_hours", 48)),
@@ -150,8 +176,8 @@ def load(config_path: Path | None = None) -> Config:
         media_files=bool(med.get("files", False)),
         media_voice=bool(med.get("voice", False)),
         max_file_chars=int(med.get("max_file_chars", 4000)),
-        image_tool_dir=Path(med.get("image_tool_dir")
-                            or RESOURCE_ROOT / "tools" / "wechat-decrypt"),
+        image_tool_dir=resolve_resource(
+            Path(med.get("image_tool_dir") or RESOURCE_ROOT / "tools" / "wechat-decrypt")),
         media_cache=Path(med.get("cache") or ROOT / "data" / "image_keys.json"),
         state_db=Path(out.get("state_db") or ROOT / "data" / "state.db"),
         out_dir=Path(out.get("out_dir") or ROOT / "out"),

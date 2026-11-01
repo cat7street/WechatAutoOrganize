@@ -1,7 +1,102 @@
 @import "tailwindcss";
 
+/*
+  主题令牌：语义色板，亮色为默认值，.dark 下覆盖同名变量。
+  做法同 shadcn/ui 的 Tailwind v4 方案：raw 变量放 :root/.dark，
+  @theme inline 再映射成 --color-* 供 bg-/text-/border- 工具类消费。
+  组件里只写 bg-surface / text-fg-muted 这类语义类，不再直写 zinc-*。
+*/
 :root {
+  color-scheme: light;
+
+  --canvas: #fafafa;
+  --surface: #ffffff;
+  --surface-2: #f4f4f5;
+  --surface-3: #e4e4e7;
+  --field: #ffffff;
+
+  --line: #e4e4e7;
+  --line-strong: #d4d4d8;
+
+  --fg-strong: #18181b;
+  --fg: #27272a;
+  --fg-muted: #52525b;
+  --fg-subtle: #71717a;
+  --fg-faint: #a1a1aa;
+
+  --primary: #18181b;
+  --primary-hover: #3f3f46;
+  --primary-fg: #fafafa;
+
+  --tone-high: #b91c1c;
+  --tone-medium: #b45309;
+  --tone-ok: #047857;
+  --tone-info: #0369a1;
+  --tone-low: #52525b;
+
+  --log-bg: #f4f4f5;
+  --scrollbar: #d4d4d8;
+}
+
+.dark {
   color-scheme: dark;
+
+  --canvas: #09090b;
+  --surface: #18181b;
+  --surface-2: #27272a;
+  --surface-3: #3f3f46;
+  --field: #09090b;
+
+  --line: #27272a;
+  --line-strong: #3f3f46;
+
+  --fg-strong: #f4f4f5;
+  --fg: #d4d4d8;
+  --fg-muted: #a1a1aa;
+  --fg-subtle: #71717a;
+  --fg-faint: #52525b;
+
+  --primary: #f4f4f5;
+  --primary-hover: #ffffff;
+  --primary-fg: #18181b;
+
+  --tone-high: #fca5a5;
+  --tone-medium: #fcd34d;
+  --tone-ok: #6ee7b7;
+  --tone-info: #7dd3fc;
+  --tone-low: #d4d4d8;
+
+  --log-bg: rgb(0 0 0 / 0.6);
+  --scrollbar: #3f3f46;
+}
+
+@theme inline {
+  --color-canvas: var(--canvas);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+  --color-field: var(--field);
+
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+
+  --color-fg: var(--fg);
+  --color-fg-strong: var(--fg-strong);
+  --color-fg-muted: var(--fg-muted);
+  --color-fg-subtle: var(--fg-subtle);
+  --color-fg-faint: var(--fg-faint);
+
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-fg: var(--primary-fg);
+
+  --color-high: var(--tone-high);
+  --color-medium: var(--tone-medium);
+  --color-ok: var(--tone-ok);
+  --color-info: var(--tone-info);
+  --color-low: var(--tone-low);
+
+  --color-log-bg: var(--log-bg);
 }
 
 html,
@@ -12,8 +107,8 @@ body,
 
 body {
   margin: 0;
-  background: #09090b;
-  color: #e4e4e7;
+  background: var(--canvas);
+  color: var(--fg);
   font-family:
     "Inter", "PingFang SC", "Microsoft YaHei", system-ui, -apple-system, sans-serif;
 }
@@ -23,7 +118,7 @@ body {
   height: 10px;
 }
 ::-webkit-scrollbar-thumb {
-  background: #3f3f46;
+  background: var(--scrollbar);
   border-radius: 6px;
 }
 ::-webkit-scrollbar-track {

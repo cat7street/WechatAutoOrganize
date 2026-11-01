@@ -87,7 +87,7 @@ export default function Sessions() {
 
   if (sessions.isLoading) {
     return (
-      <div className="flex items-center gap-2 text-sm text-zinc-400">
+      <div className="flex items-center gap-2 text-sm text-fg-muted">
         <Spinner /> 读取会话…
       </div>
     );
@@ -95,7 +95,7 @@ export default function Sessions() {
   if (sessions.error) {
     return (
       <Card>
-        <CardContent className="py-8 text-sm text-amber-300">
+        <CardContent className="py-8 text-sm text-medium">
           {(sessions.error as Error).message}
         </CardContent>
       </Card>
@@ -111,7 +111,7 @@ export default function Sessions() {
           onChange={(e) => setKeyword(e.target.value)}
           className="max-w-sm"
         />
-        <div className="text-xs text-zinc-500">
+        <div className="text-xs text-fg-subtle">
           共 {sessions.data?.total ?? 0} 个会话，已纳入 {whitelist.length} 个
         </div>
         <div className="ml-auto flex gap-2">
@@ -130,7 +130,7 @@ export default function Sessions() {
       </div>
 
       <Card className="min-h-0 flex-1">
-        <div className="grid grid-cols-[48px_1fr_120px_120px_150px] border-b border-zinc-800 px-3 py-2 text-xs text-zinc-400">
+        <div className="grid grid-cols-[48px_1fr_120px_120px_150px] border-b border-line px-3 py-2 text-xs text-fg-muted">
           <span>纳入</span>
           <span>会话</span>
           <span className="text-right">消息数</span>
@@ -152,7 +152,7 @@ export default function Sessions() {
                     height: vi.size,
                     transform: `translateY(${vi.start}px)`,
                   }}
-                  className="grid grid-cols-[48px_1fr_120px_120px_150px] items-center border-b border-zinc-800/50 px-3 text-sm hover:bg-zinc-900/40"
+                  className="grid grid-cols-[48px_1fr_120px_120px_150px] items-center border-b border-line/50 px-3 text-sm hover:bg-surface-2"
                 >
                   <input
                     type="checkbox"
@@ -162,14 +162,14 @@ export default function Sessions() {
                   />
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">
-                      <span className="truncate text-zinc-100">{s.display}</span>
+                      <span className="truncate text-fg-strong">{s.display}</span>
                       {s.is_chatroom && <Badge tone="info">群</Badge>}
                     </div>
-                    <div className="truncate text-[11px] text-zinc-500">{s.username}</div>
+                    <div className="truncate text-[11px] text-fg-subtle">{s.username}</div>
                   </div>
-                  <span className="text-right tabular-nums text-zinc-300">{s.msg_count}</span>
-                  <span className="text-right tabular-nums text-zinc-400">{s.unread}</span>
-                  <span className="text-right text-xs text-zinc-500">{fmtTime(s.last_ts)}</span>
+                  <span className="text-right tabular-nums text-fg">{s.msg_count}</span>
+                  <span className="text-right tabular-nums text-fg-muted">{s.unread}</span>
+                  <span className="text-right text-xs text-fg-subtle">{fmtTime(s.last_ts)}</span>
                 </div>
               );
             })}

@@ -14,10 +14,10 @@ type Variant = "default" | "secondary" | "outline" | "ghost" | "danger";
 type Size = "sm" | "md" | "icon";
 
 const VARIANTS: Record<Variant, string> = {
-  default: "bg-zinc-100 text-zinc-900 hover:bg-white",
-  secondary: "bg-zinc-800 text-zinc-100 hover:bg-zinc-700",
-  outline: "border border-zinc-700 text-zinc-200 hover:bg-zinc-800",
-  ghost: "text-zinc-300 hover:bg-zinc-800 hover:text-white",
+  default: "bg-primary text-primary-fg hover:bg-primary-hover",
+  secondary: "bg-surface-2 text-fg-strong hover:bg-surface-3",
+  outline: "border border-line-strong text-fg hover:bg-surface-2",
+  ghost: "text-fg hover:bg-surface-2 hover:text-fg-strong",
   danger: "bg-red-600 text-white hover:bg-red-500",
 };
 
@@ -37,7 +37,7 @@ export function Button({
     <button
       className={cn(
         "inline-flex items-center justify-center gap-1.5 rounded-md font-medium transition-colors",
-        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-500",
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-line-strong",
         "disabled:pointer-events-none disabled:opacity-50",
         VARIANTS[variant],
         SIZES[size],
@@ -51,7 +51,7 @@ export function Button({
 export function Card({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
   return (
     <div
-      className={cn("rounded-xl border border-zinc-800 bg-zinc-900/60 shadow-sm", className)}
+      className={cn("rounded-xl border border-line bg-surface shadow-sm", className)}
       {...props}
     />
   );
@@ -62,7 +62,7 @@ export function CardHeader({ className, ...props }: HTMLAttributes<HTMLDivElemen
 }
 
 export function CardTitle({ className, ...props }: HTMLAttributes<HTMLHeadingElement>) {
-  return <h3 className={cn("text-sm font-semibold text-zinc-200", className)} {...props} />;
+  return <h3 className={cn("text-sm font-semibold text-fg-strong", className)} {...props} />;
 }
 
 export function CardContent({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
@@ -70,11 +70,11 @@ export function CardContent({ className, ...props }: HTMLAttributes<HTMLDivEleme
 }
 
 const BADGE: Record<string, string> = {
-  high: "bg-red-500/15 text-red-300 border-red-500/30",
-  medium: "bg-amber-500/15 text-amber-300 border-amber-500/30",
-  low: "bg-zinc-500/15 text-zinc-300 border-zinc-500/30",
-  ok: "bg-emerald-500/15 text-emerald-300 border-emerald-500/30",
-  info: "bg-sky-500/15 text-sky-300 border-sky-500/30",
+  high: "bg-high/15 text-high border-high/30",
+  medium: "bg-medium/15 text-medium border-medium/30",
+  low: "bg-low/15 text-low border-low/30",
+  ok: "bg-ok/15 text-ok border-ok/30",
+  info: "bg-info/15 text-info border-info/30",
 };
 
 export function Badge({
@@ -98,8 +98,8 @@ export function Input({ className, ...props }: InputHTMLAttributes<HTMLInputElem
   return (
     <input
       className={cn(
-        "h-9 w-full rounded-md border border-zinc-700 bg-zinc-950 px-3 text-sm",
-        "placeholder:text-zinc-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-500",
+        "h-9 w-full rounded-md border border-line-strong bg-field px-3 text-sm text-fg",
+        "placeholder:text-fg-subtle focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-line-strong",
         className,
       )}
       {...props}
@@ -108,14 +108,14 @@ export function Input({ className, ...props }: InputHTMLAttributes<HTMLInputElem
 }
 
 export function Label({ className, ...props }: HTMLAttributes<HTMLLabelElement>) {
-  return <label className={cn("mb-1 block text-xs text-zinc-400", className)} {...props} />;
+  return <label className={cn("mb-1 block text-xs text-fg-muted", className)} {...props} />;
 }
 
 export function Th({ className, ...props }: ThHTMLAttributes<HTMLTableCellElement>) {
   return (
     <th
       className={cn(
-        "sticky top-0 z-10 border-b border-zinc-800 bg-zinc-900 px-3 py-2 text-left text-xs font-medium text-zinc-400",
+        "sticky top-0 z-10 border-b border-line bg-surface-2 px-3 py-2 text-left text-xs font-medium text-fg-muted",
         className,
       )}
       {...props}
@@ -124,14 +124,14 @@ export function Th({ className, ...props }: ThHTMLAttributes<HTMLTableCellElemen
 }
 
 export function Td({ className, ...props }: TdHTMLAttributes<HTMLTableCellElement>) {
-  return <td className={cn("border-b border-zinc-800/60 px-3 py-2 text-sm", className)} {...props} />;
+  return <td className={cn("border-b border-line/60 px-3 py-2 text-sm", className)} {...props} />;
 }
 
 export function Spinner({ className }: { className?: string }) {
   return (
     <span
       className={cn(
-        "inline-block h-4 w-4 animate-spin rounded-full border-2 border-zinc-600 border-t-transparent",
+        "inline-block h-4 w-4 animate-spin rounded-full border-2 border-line-strong border-t-transparent",
         className,
       )}
     />

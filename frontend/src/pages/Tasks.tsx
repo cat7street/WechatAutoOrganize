@@ -61,11 +61,11 @@ export default function Tasks() {
             {f.label}
           </Button>
         ))}
-        <span className="ml-auto text-xs text-zinc-500">{items.length} 条</span>
+        <span className="ml-auto text-xs text-fg-subtle">{items.length} 条</span>
       </div>
 
       {tasks.isLoading && (
-        <div className="flex items-center gap-2 text-sm text-zinc-400">
+        <div className="flex items-center gap-2 text-sm text-fg-muted">
           <Spinner /> 加载待办…
         </div>
       )}
@@ -86,27 +86,27 @@ export default function Tasks() {
             </thead>
             <tbody>
               {items.map((t: Task) => (
-                <tr key={t.id} className="align-top hover:bg-zinc-900/50">
+                <tr key={t.id} className="align-top hover:bg-surface-2">
                   <Td>
                     <Badge tone={PRIO_TONE[t.priority] ?? "low"}>{t.priority}</Badge>
                   </Td>
                   <Td>
-                    <div className={t.status === "done" ? "text-zinc-500 line-through" : "text-zinc-100"}>
+                    <div className={t.status === "done" ? "text-fg-subtle line-through" : "text-fg-strong"}>
                       {t.title}
                     </div>
                     {t.quote && (
-                      <div className="mt-1 max-w-xl text-[11px] text-zinc-500">
+                      <div className="mt-1 max-w-xl text-[11px] text-fg-subtle">
                         “{t.quote}”
-                        <span className="ml-1 text-zinc-600">
+                        <span className="ml-1 text-fg-faint">
                           msg:{t.msg_ids.join(",")}
                         </span>
                       </div>
                     )}
                   </Td>
-                  <Td className="text-zinc-400">{t.owner || "-"}</Td>
-                  <Td className="text-zinc-400">{t.due || "-"}</Td>
-                  <Td className="truncate text-zinc-400">{t.session_display}</Td>
-                  <Td className="text-xs text-zinc-500">{fmtTime(t.created_at)}</Td>
+                  <Td className="text-fg-muted">{t.owner || "-"}</Td>
+                  <Td className="text-fg-muted">{t.due || "-"}</Td>
+                  <Td className="truncate text-fg-muted">{t.session_display}</Td>
+                  <Td className="text-xs text-fg-subtle">{fmtTime(t.created_at)}</Td>
                   <Td>
                     <div className="flex gap-1">
                       {t.status !== "done" && (
@@ -133,7 +133,7 @@ export default function Tasks() {
               ))}
               {items.length === 0 && !tasks.isLoading && (
                 <tr>
-                  <Td colSpan={7} className="py-10 text-center text-zinc-500">
+                  <Td colSpan={7} className="py-10 text-center text-fg-subtle">
                     没有待办。去「运行」页跑一次增量，或调整白名单。
                   </Td>
                 </tr>

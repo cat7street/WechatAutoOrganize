@@ -28,6 +28,8 @@ window_hours = 48
 # ---- 媒体（非文本消息）----
 # 图片会被解出来交给多模态模型看；文件抽正文当文本；语音本机无音频文件，只给时长
 [media]
+# 非文本消息总开关（图/文件/语音元信息）
+enabled = true
 images = true
 files = true
 voice = true
