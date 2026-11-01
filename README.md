@@ -146,6 +146,35 @@ run_on_start = true
 > 单轮全量对账要几分钟（对话长、模型慢），间隔别设太短；建议 30–60 分钟。
 > 想更快可把 `skip_decrypt = true`（WAL 合并仍会补上最新消息）。
 
+
+## 浏览器配置
+
+启动时自动打开面板，浏览器可配：
+
+```toml
+[server]
+host = "127.0.0.1"
+port = 8787
+open_browser = true          # 启动是否自动开浏览器
+browser = ""                 # 留空用系统默认；也可指定具体浏览器
+# browser = "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe"
+```
+
+命令行覆盖（优先级高于配置）：
+
+```powershell
+WechatAutoOrganize.exe                  # 按配置（默认开浏览器）
+WechatAutoOrganize.exe --no-open        # 这次不开
+WechatAutoOrganize.exe --open           # 强制开（哪怕配置里关了）
+WechatAutoOrganize.exe --port 8788      # 换端口
+WechatAutoOrganize.exe --browser "C:\Program Files\Google\Chrome\Application\chrome.exe"
+```
+
+实现细节：**等端口真能连上再开浏览器**（否则会先闪一个"无法访问"的空白页）；
+指定浏览器不存在时打印原因并退回系统默认；启动日志会写明"自动开浏览器：是/否（哪个浏览器）"。
+
+> 命令行里传带空格的路径要加引号，PowerShell 下写成 `--browser "C:\Program Files\...\chrome.exe"`。
+
 ## 实测环境
 
 | 项 | 值 |

@@ -2,14 +2,19 @@
 """单进程启动：FastAPI 同时提供 API 与前端静态产物。
 
 用法：
-  python scripts/serve.py                # 用 config.toml 的 [server].port
-  python scripts/serve.py --port 8788    # 临时换端口
-  python scripts/serve.py --open         # 起完自动打开浏览器
+  WechatAutoOrganize.exe                   # 按 config.toml 的 [server] 启动，并自动开浏览器
+  WechatAutoOrganize.exe --no-open         # 不开浏览器
+  WechatAutoOrganize.exe --port 8788       # 临时换端口
+  WechatAutoOrganize.exe --browser "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe"
+
+[server] 里可配：
+  host / port / open_browser（默认 true）/ browser（浏览器可执行文件，留空用系统默认）
 """
 from __future__ import annotations
 
 import errno
 import socket
+import subprocess
 import sys
 import threading
 import time
@@ -43,7 +48,25 @@ def _pause(msg: str = "按回车键退出…") -> None:
             pass
 
 
-def _open_when_ready(host: str, port: int, url: str) -> None:
+def _launch(url: str, browser: str) -> bool:
+    """用指定浏览器打开；没指定就走系统默认。返回是否成功发起。"""
+    if browser:
+        exe = Path(browser)
+        if not exe.is_file():
+            print(f"[启动] 配置的浏览器不存在：{browser}，改用系统默认")
+        else:
+            try:
+                args = [str(exe), url]
+                if "chrome" in exe.name.lower() or "edge" in exe.name.lower():
+                    args.insert(1, "--new-window")
+                subprocess.Popen(args, close_fds=True)
+                return True
+            except OSError as exc:
+                print(f"[启动] 指定浏览器启动失败（{exc}），改用系统默认")
+    return webbrowser.open(url)
+
+
+def _open_when_ready(host: str, port: int, url: str, browser: str) -> None:
     """等端口真的能连上再开浏览器，否则会先看到一个“无法访问”的空白页。"""
 
     def _worker() -> None:
@@ -54,8 +77,8 @@ def _open_when_ready(host: str, port: int, url: str) -> None:
                     break
             except OSError:
                 time.sleep(0.15)
-        opened = webbrowser.open(url)
-        print(f"[启动] 已在浏览器打开 {url}" if opened else
+        ok = _launch(url, browser)
+        print(f"[启动] 已在浏览器打开 {url}" if ok else
               f"[启动] 浏览器未能自动打开，请手动访问 {url}")
 
     threading.Thread(target=_worker, daemon=True).start()
@@ -65,15 +88,19 @@ def main() -> int:
     cfg = load()
     host = _arg("--host") or cfg.host
     port = int(_arg("--port") or cfg.port)
+    browser = _arg("--browser") or cfg.browser
     dist = RESOURCE_ROOT / "frontend" / "dist"
     if not dist.is_dir():
         print("[提示] frontend/dist 不存在：先 cd frontend && pnpm install && pnpm build")
 
     url = f"http://{host}:{port}"
     print(f"面板地址：{url}")
-    print(f"配置文件：{Path.cwd()}")
-    if "--no-open" not in sys.argv:
-        _open_when_ready(host, port, url)
+    print(f"数据目录：{Path.cwd()}")
+    want_open = ("--open" in sys.argv) or (cfg.open_browser and "--no-open" not in sys.argv)
+    print(f"自动开浏览器：{'是' if want_open else '否'}"
+          + (f"（{browser or '系统默认'}）" if want_open else ""))
+    if want_open:
+        _open_when_ready(host, port, url, browser)
     try:
         uvicorn.run(app, host=host, port=port, log_level="info")
     except OSError as exc:

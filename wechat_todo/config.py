@@ -112,6 +112,8 @@ class Config:
     # --- 面板 ---
     host: str = "127.0.0.1"
     port: int = 8787
+    open_browser: bool = True
+    browser: str = ""
 
     # 数据根目录（exe 旁边 / 仓库根）；放最后，避免 dataclass 默认值顺序问题
     root: Path = ROOT
@@ -217,5 +219,7 @@ def load(config_path: Path | None = None) -> Config:
         out_dir=_abs(out.get("out_dir") or ROOT / "out"),
         host=srv.get("host", "127.0.0.1"),
         port=int(srv.get("port", 8787)),
+        open_browser=bool(srv.get("open_browser", True)),
+        browser=str(srv.get("browser", "") or ""),
     )
     return cfg

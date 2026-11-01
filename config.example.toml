@@ -48,6 +48,11 @@ out_dir = "out"
 [server]
 host = "127.0.0.1"
 port = 8787
+# 启动后自动打开浏览器
+open_browser = true
+# 指定用哪个浏览器（留空用系统默认），例如：
+# browser = "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe"
+browser = ""
 
 [reconcile]
 # 回溯核对：把整段时间窗的对话交给模型，让它逐条判断取消/替代/继续
