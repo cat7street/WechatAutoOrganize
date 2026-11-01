@@ -7,8 +7,10 @@ from __future__ import annotations
 
 import contextlib
 import io
+import json
 import runpy
 import shutil
+import subprocess
 import sys
 from pathlib import Path
 
@@ -71,3 +73,48 @@ def decrypt(cfg: Config, log=print, force: bool = False) -> Path:
         log(f"[decrypt] 清理 WAL sidecar {removed} 个")
     log("[decrypt] 完成")
     return cfg.work_dir
+
+
+CREATE_NO_WINDOW = 0x08000000
+
+
+def _worker_cmd(result_file: Path) -> list[str]:
+    """冻结成 exe 时用自己当 worker（sys.executable 就是 exe），开发时用 -m。"""
+    if getattr(sys, "frozen", False):
+        return [sys.executable, "--worker", "decrypt", str(result_file)]
+    return [sys.executable, "-m", "wechat_todo.decrypt_worker", str(result_file)]
+
+
+def run_detached(cfg: Config, log=print, timeout: int = 1800) -> dict:
+    """在后台子进程里跑「解密 + WAL 合并」，解完即退。返回统计。
+
+    子进程用 CREATE_NO_WINDOW 启动，不会弹黑框；结果通过临时 JSON 文件回传。
+    """
+    result_file = cfg.work_dir.parent / "data" / "decrypt_result.json"
+    result_file.parent.mkdir(parents=True, exist_ok=True)
+    result_file.unlink(missing_ok=True)
+
+    cmd = _worker_cmd(result_file)
+    log(f"[decrypt] 后台进程启动：{' '.join(cmd)}")
+    flags = CREATE_NO_WINDOW if sys.platform == "win32" else 0
+    try:
+        proc = subprocess.run(cmd, capture_output=True, text=True,
+                              encoding="utf-8", errors="replace",
+                              creationflags=flags, timeout=timeout,
+                              cwd=str(cfg.work_dir.parent))
+    except subprocess.TimeoutExpired as exc:
+        raise RuntimeError(f"解密子进程超时（>{timeout}s）") from exc
+
+    if not result_file.is_file():
+        tail = (proc.stderr or proc.stdout or "")[-800:]
+        raise RuntimeError(f"解密子进程没回传结果（exit={proc.returncode}）\n{tail}")
+    data = json.loads(result_file.read_text(encoding="utf-8"))
+    if not data.get("ok"):
+        raise RuntimeError(f"解密失败（{data.get('stage')}）：{data.get('error')}\n"
+                           f"{(data.get('traceback') or '')[-600:]}")
+    removed = _clean_sidecars(cfg.work_dir)
+    if removed:
+        log(f"[decrypt] 清理 WAL sidecar {removed} 个")
+    wal = (data.get("stats") or {}).get("wal") or {}
+    log(f"[decrypt] 完成（子进程已退出）：WAL 合并 {wal.get('patched', 0)} 个库")
+    return data.get("stats") or {}

@@ -14,7 +14,7 @@ from . import merge as merger
 from . import reconcile as reconciler
 from . import render, scan, upstream
 from .config import Config
-from .decrypt import decrypt
+from .decrypt import run_detached
 from .extract import build_user_prompt, extract_session, _pack
 from .llm import LLM
 from .store import Store
@@ -41,23 +41,25 @@ def iter_run(cfg: Config, *, skip_decrypt: bool = False, dry_run: bool = False,
         yield _ev("log", msg=f"运行 {run_id} 开始")
         if not skip_decrypt:
             yield _ev("stage", stage="decrypt")
-            decrypt(cfg, log=lambda m: None)
-            yield _ev("log", msg="解密完成")
+            dstats = run_detached(cfg, log=lambda m: None)
+            stats["decrypt"] = dstats
+            yield _ev("log", msg="解密完成（后台进程已退出）")
         else:
             yield _ev("log", msg="跳过解密，复用现有解密目录")
 
-        # 无论是否重新解密，都要把 WAL 里的未落盘消息合进来，否则永远“无新消息”
-        yield _ev("stage", stage="wal")
-        try:
-            wal_stats = wal_sync(cfg.work_dir, cfg.db_dir, cfg.keys_file,
-                                 log=lambda m: None)
-            stats["wal"] = wal_stats
-            yield _ev("log", msg=(f"WAL 合并：{wal_stats['patched']} 个库更新"
-                                   f"（有 WAL 的库 {wal_stats['checked'] - wal_stats['no_wal']}）"))
-            if wal_stats["errors"]:
-                yield _ev("log", msg="WAL 警告：" + "；".join(wal_stats["errors"][:3]))
-        except FileNotFoundError as exc:
-            raise RuntimeError(f"WAL 合并失败：{exc}") from exc
+        # 子进程已经做过 WAL 合并；只有“跳过解密”的那一轮需要在这里补
+        if skip_decrypt:
+            yield _ev("stage", stage="wal")
+            try:
+                wal_stats = wal_sync(cfg.work_dir, cfg.db_dir, cfg.keys_file,
+                                     log=lambda m: None)
+                stats["wal"] = wal_stats
+                yield _ev("log", msg=(f"WAL 合并：{wal_stats['patched']} 个库更新"
+                                       f"（有 WAL 的库 {wal_stats['checked'] - wal_stats['no_wal']}）"))
+                if wal_stats["errors"]:
+                    yield _ev("log", msg="WAL 警告：" + "；".join(wal_stats["errors"][:3]))
+            except FileNotFoundError as exc:
+                raise RuntimeError(f"WAL 合并失败：{exc}") from exc
 
         yield _ev("stage", stage="scan")
         sessions = [s for s in scan.list_sessions(cfg.work_dir, cfg.whitelist) if s.whitelisted]

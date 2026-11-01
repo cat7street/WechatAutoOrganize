@@ -10,7 +10,8 @@ if (-not (Test-Path "$root\frontend\dist\index.html")) {
     throw "缺少前端产物：先 cd frontend && pnpm install && pnpm build"
 }
 
-& $py -m PyInstaller --noconfirm --clean --onefile --name WechatAutoOrganize `
+# --noconsole：双击不弹黑框；日志写 logs\app.log
+& $py -m PyInstaller --noconfirm --clean --onefile --noconsole --name WechatAutoOrganize `
     --add-data "$root\frontend\dist;frontend\dist" `
     --add-data "$root\vendor\wcdb-key-tool\wcdb_key_tool_windows.py;vendor\wcdb-key-tool" `
     --add-data "$root\vendor\wechat-decrypt\decode_image.py;vendor\wechat-decrypt" `
