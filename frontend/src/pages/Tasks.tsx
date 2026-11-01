@@ -167,6 +167,11 @@ export default function Tasks() {
                         <span className="ml-1 text-fg-faint">msg:{t.msg_ids.join(",")}</span>
                       </div>
                     )}
+                    {t.state_note && (
+                      <div className="mt-1 max-w-xl text-[11px] text-medium">
+                        {t.state_note}
+                      </div>
+                    )}
                     {t.cancelled_reason && (
                       <div className="mt-1 max-w-xl text-[11px] text-high">
                         已在对话里被推翻：{t.cancelled_reason}

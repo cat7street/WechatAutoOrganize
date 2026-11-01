@@ -605,6 +605,16 @@ export interface components {
              * @default []
              */
             cancelled_msg_ids: number[];
+            /**
+             * State Note
+             * @default
+             */
+            state_note: string;
+            /**
+             * Reconciled Until
+             * @default 0
+             */
+            reconciled_until: number;
         };
         /** TaskPatch */
         TaskPatch: {

@@ -143,17 +143,24 @@ def iter_run(cfg: Config, *, skip_decrypt: bool = False, dry_run: bool = False,
                               f"提级 {mstats['lifted']} 条（候选 {mstats['candidates']}）"))
 
         # 回溯核对：后续对话里被明确推翻的待办，不要留在待办列表里
-        rstats, rusage = {"sessions": 0, "checked_tasks": 0, "cancelled": 0}, None
+        rstats, rusage = {"tasks": 0, "calls": 0, "cancelled": 0, "superseded": 0,
+                          "restored": 0, "suspected": 0, "rejected": 0}, None
         if cfg.reconcile_enabled:
             yield _ev("stage", stage="reconcile")
             rstats, rusage = reconciler.reconcile(
-                cfg, store, log=lambda m: None, window=cfg.reconcile_lookback)
+                cfg, store, log=lambda m: None,
+                window_hours=cfg.reconcile_window_hours,
+                max_context_chars=cfg.reconcile_max_chars,
+                tasks_per_call=cfg.reconcile_tasks_per_call,
+                max_calls=cfg.reconcile_max_calls)
         if rusage is not None:
             prompt_tokens += rusage.prompt_tokens
             completion_tokens += rusage.completion_tokens
         stats["reconcile"] = rstats
-        yield _ev("log", msg=(f"回溯核对：{rstats['sessions']} 个会话 / "
-                              f"{rstats['checked_tasks']} 条待办，取消 {rstats['cancelled']} 条"))
+        yield _ev("log", msg=(f"回溯核对：核对 {rstats['tasks']} 条待办 / {rstats['calls']} 次调用 → "
+                              f"取消 {rstats['cancelled']}、被替代 {rstats['superseded']}、"
+                              f"恢复 {rstats['restored']}、疑似 {rstats['suspected']}、"
+                              f"驳回 {rstats['rejected']}"))
 
         yield _ev("stage", stage="render")
         fresh = store.tasks_of_run(run_id)

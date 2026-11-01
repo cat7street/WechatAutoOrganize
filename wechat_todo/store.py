@@ -49,6 +49,8 @@ def _row_to_dict(row) -> dict:
     d["msg_ids"] = json.loads(d.get("msg_ids") or "[]")
     d["merged_from"] = json.loads(d.get("merged_from") or "[]")
     d["cancelled_msg_ids"] = json.loads(d.get("cancelled_msg_ids") or "[]")
+    d["state_note"] = d.get("state_note") or ""
+    d["reconciled_until"] = int(d.get("reconciled_until") or 0)
     return d
 
 
@@ -70,7 +72,10 @@ class Store:
                 ("merged_from", "alter table tasks add column merged_from text default '[]'"),
                 ("cancelled_reason", "alter table tasks add column cancelled_reason text default ''"),
                 ("cancelled_msg_ids",
-                 "alter table tasks add column cancelled_msg_ids text default '[]'")):
+                 "alter table tasks add column cancelled_msg_ids text default '[]'"),
+                ("state_note", "alter table tasks add column state_note text default ''"),
+                ("reconciled_until",
+                 "alter table tasks add column reconciled_until integer default 0")):
             if name not in cols:
                 self.con.execute(ddl)
 
@@ -162,14 +167,48 @@ class Store:
                     "select id,title,due from tasks where status='pending' "
                     "order by id desc limit ?", (limit,))]
 
-    def cancel_task(self, task_id: int, reason: str, msg_ids: list[int]) -> bool:
-        """对话里被明确推翻的待办：置 cancelled 并记下依据。"""
+    def cancel_task(self, task_id: int, reason: str, msg_ids: list[int],
+                    note: str = "") -> bool:
+        """对话里被推翻/被替代的待办：置 cancelled 并记下依据。"""
         cur = self.con.execute(
-            "update tasks set status='cancelled',cancelled_reason=?,cancelled_msg_ids=? "
-            "where id=? and status='pending'",
-            (reason, json.dumps(sorted(set(msg_ids))), task_id))
+            "update tasks set status='cancelled',cancelled_reason=?,cancelled_msg_ids=?,"
+            "state_note=? where id=? and status in ('pending','suspected')",
+            (reason, json.dumps(sorted(set(msg_ids))), note, task_id))
         self.con.commit()
         return cur.rowcount > 0
+
+    def restore_task(self, task_id: int, note: str) -> bool:
+        """曾被取消、后来又被要求做：恢复成待办，并留痕。"""
+        cur = self.con.execute(
+            "update tasks set status='pending',state_note=? where id=? and status='cancelled'",
+            (note, task_id))
+        self.con.commit()
+        return cur.rowcount > 0
+
+    def clear_cancel(self, task_id: int, note: str = "") -> None:
+        """判定仍要做时清掉旧的取消痕迹，避免误导。"""
+        self.con.execute(
+            "update tasks set cancelled_reason='',cancelled_msg_ids='[]',state_note=? "
+            "where id=?", (note, task_id))
+        self.con.commit()
+
+    def annotate(self, task_id: int, note: str) -> None:
+        self.con.execute("update tasks set state_note=? where id=?", (note, task_id))
+        self.con.commit()
+
+    def mark_reconciled(self, task_id: int, until_seq: int) -> None:
+        self.con.execute("update tasks set reconciled_until=? where id=?",
+                         (int(until_seq), task_id))
+        self.con.commit()
+
+    def list_for_reconcile(self, limit: int = 120) -> list[dict]:
+        """待核对 = pending + 最近取消的（取消也可能被推翻回来）。"""
+        out = []
+        for r in self.con.execute(
+                "select * from tasks where status in ('pending','cancelled') "
+                "order by id desc limit ?", (limit,)):
+            out.append(_row_to_dict(r))
+        return out
 
     def get_task(self, task_id: int) -> dict | None:
         r = self.con.execute("select * from tasks where id=?", (task_id,)).fetchone()
@@ -193,6 +232,8 @@ class Store:
         if not sets:
             return False
         clause = ",".join(f"{k}=?" for k in sets)
+        if sets.get("status") == "pending":
+            clause += ",cancelled_reason='',cancelled_msg_ids='[]',state_note=''"
         cur = self.con.execute(f"update tasks set {clause} where id=?",
                                (*sets.values(), task_id))
         self.con.commit()

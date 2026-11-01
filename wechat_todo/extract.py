@@ -1,7 +1,6 @@
 """把聊天片段喂给模型，抽成结构化待办。分批只按字符预算切，不跨会话混装。"""
 from __future__ import annotations
 
-from .cancel_guard import accept as guard_accept
 from .llm import LLM, Usage
 from .schema import Message, Task
 
@@ -152,9 +151,10 @@ def extract_session(llm: LLM, session_display: str, messages: list[Message],
             if tid not in pending_ids or not ev_ids:
                 continue  # 清单里没有、或没有可核对原文的，一律不取消
             ev_text = " ".join(m.text for m in batch if m.local_id in set(ev_ids))
-            ok, why = guard_accept(ev_text)
-            if not ok:
-                log(f"[extract] 驳回对 #{tid} 的取消：{why}")
+            import re as _re
+            reason = (raw.get("reason") or "").strip()
+            if not reason or _re.sub(r"\s+", "", reason) not in _re.sub(r"\s+", "", ev_text):
+                log(f"[extract] 驳回对 #{tid} 的取消：理由不是逐字原文")
                 continue
             cancelled.append({"task_id": tid, "reason": (raw.get("reason") or "").strip(),
                               "msg_ids": ev_ids})

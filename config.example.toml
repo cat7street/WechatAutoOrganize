@@ -50,6 +50,13 @@ host = "127.0.0.1"
 port = 8787
 
 [reconcile]
-# 回溯核对："后面又说不做了"的待办自动剔除
+# 回溯核对：把整段时间窗的对话交给模型，让它逐条判断取消/替代/继续
 enabled = true
-lookback = 150
+# 看多久的对话
+window_hours = 48
+# 单次送进去的最大字符数（超了从最早截断，保留最新）
+max_context_chars = 160000
+# 每次调用带多少条待办
+tasks_per_call = 12
+# 单次运行最多几次调用
+max_calls = 8

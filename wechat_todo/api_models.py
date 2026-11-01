@@ -87,6 +87,8 @@ class TaskOut(BaseModel):
     merged_from: list[int] = []
     cancelled_reason: str = ""
     cancelled_msg_ids: list[int] = []
+    state_note: str = ""
+    reconciled_until: int = 0
 
 
 class ViewAttachment(BaseModel):

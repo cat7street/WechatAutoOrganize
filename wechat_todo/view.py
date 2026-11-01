@@ -112,12 +112,13 @@ def messages_after(cfg: Config, username: str, after_seq: int, *, limit: int = 8
             "messages": _fmt(session, rows, displays, senders, media_ctx, cfg, with_images)}
 
 
-def messages_slice(cfg: Config, username: str, after_seq: int, *, head: int = 40,
-                   tail: int = 40, with_images: bool = False) -> dict:
-    """核对窗口 = 紧接 after_seq 之后的一段（head） + 会话最新一段（tail）。
+def context_window(cfg: Config, username: str, anchor_seq: int, *, pre: int = 20,
+                   post: int = 50, tail: int = 0, post_latest: bool = False,
+                   with_images: bool = False) -> dict:
+    """给模型看的一段上下文：锚点之前 pre 条 + 之后 post 条 + 会话最新 tail 条。
 
-    只取“最新 N 条”会让所有待办看到同一段尾巴（踩过），只取“紧接之后”又漏掉
-    很晚才发生的推翻，所以两头都取。
+    为什么要三段：前文明白在讨论什么，紧接后续看当时怎么决定，最新尾巴看后来有没有推翻。
+    只给“最新 N 条”会让所有待办看到同一段尾巴（踩过）；只给“紧接之后”会漏掉很晚的变化。
     """
     from . import upstream
     media_ctx = scan.make_media_context(cfg.work_dir, cfg.account_root(),
@@ -125,23 +126,59 @@ def messages_slice(cfg: Config, username: str, after_seq: int, *, head: int = 40
     session = _session(cfg, username)
     if session is None or session.table is None:
         return {"display": username, "messages": []}
+    cols = ("local_id, sort_seq, real_sender_id, create_time, local_type, message_content")
     con = scan.connect(cfg.work_dir / "message" / "message_0.db")
     try:
-        head_rows = con.execute(
-            f"select local_id, sort_seq, real_sender_id, create_time, local_type, "
-            f"message_content from {session.table} where sort_seq > ? "
-            f"order by sort_seq limit ?", (after_seq, head)).fetchall()
-        tail_rows = con.execute(
-            f"select local_id, sort_seq, real_sender_id, create_time, local_type, "
-            f"message_content from {session.table} order by sort_seq desc limit ?",
-            (tail,)).fetchall()
+        before = con.execute(
+            f"select {cols} from {session.table} where sort_seq <= ? "
+            f"order by sort_seq desc limit ?", (anchor_seq, pre)).fetchall() if pre else []
+        if post:
+            order = "desc" if post_latest else "asc"
+            after = con.execute(
+                f"select {cols} from {session.table} where sort_seq > ? "
+                f"order by sort_seq {order} limit ?", (anchor_seq, post)).fetchall()
+        else:
+            after = []
+        latest = con.execute(
+            f"select {cols} from {session.table} order by sort_seq desc limit ?",
+            (tail,)).fetchall() if tail else []
     finally:
         con.close()
-    merged = {int(r[0]): r for r in list(reversed(tail_rows)) + head_rows}
+    merged = {int(r[0]): r for r in list(before) + list(after) + list(reversed(latest))}
     rows = [merged[k] for k in sorted(merged, key=lambda k: merged[k][1])]
     displays, senders = scan._display_names(cfg.work_dir), scan._sender_map(cfg.work_dir)
     return {"display": session.display,
             "messages": _fmt(session, rows, displays, senders, media_ctx, cfg, with_images)}
+
+
+def recent_window(cfg: Config, username: str, *, hours: int = 48,
+                  max_chars: int = 160_000, with_images: bool = False) -> dict:
+    """整段时间窗的完整对话（按时间升序）。超长时保留最新部分并标记 truncated。"""
+    import time as _t
+    from . import upstream
+    media_ctx = scan.make_media_context(cfg.work_dir, cfg.account_root(),
+                                        upstream.prepare(cfg))
+    session = _session(cfg, username)
+    if session is None or session.table is None:
+        return {"display": username, "messages": [], "truncated": False}
+    cutoff = int(_t.time()) - hours * 3600
+    cols = "local_id, sort_seq, real_sender_id, create_time, local_type, message_content"
+    con = scan.connect(cfg.work_dir / "message" / "message_0.db")
+    try:
+        rows = con.execute(
+            f"select {cols} from {session.table} where create_time >= ? "
+            f"order by sort_seq", (cutoff,)).fetchall()
+    finally:
+        con.close()
+    displays, senders = scan._display_names(cfg.work_dir), scan._sender_map(cfg.work_dir)
+    msgs = _fmt(session, rows, displays, senders, media_ctx, cfg, with_images)
+    truncated = False
+    total = sum(len(m["text"] or "") + 60 for m in msgs)
+    while total > max_chars and len(msgs) > 1:
+        dropped = msgs.pop(0)
+        total -= len(dropped["text"] or "") + 60
+        truncated = True
+    return {"display": session.display, "messages": msgs, "truncated": truncated}
 
 
 def seq_of(cfg: Config, username: str, msg_ids: list[int]) -> dict[int, int]:
